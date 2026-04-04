@@ -58,6 +58,8 @@ CfoE is a multi-agent ESG audit system that helps teams evaluate supplier carbon
 | Policy Enforcement            | Automatic action routing based on risk thresholds   |
 | HITL Safety Gate              | High-risk cases marked for human review             |
 | Blockchain Integration        | On-chain audit anchoring with Algorand              |
+| Carbon Credit Tokens          | Fungible ASA tokens for tradeable emission credits |
+| Audit Certificate NFTs        | Unique 1-of-1 NFTs for compliance proof            |
 | AI Reporting                  | Executive summaries and recommendations             |
 | Web Dashboard                 | Submit, compare, and track audits interactively     |
 | Real-Time Simulator           | Live emissions streaming and one-click data audits  |
@@ -485,6 +487,113 @@ If blockchain credentials are not configured, CfoE operates in **offline mode**:
 - Transactions stored locally with unique IDs
 - Can be synced to blockchain later
 - No functionality loss
+
+---
+
+## Carbon Credit Token System
+
+CfoE implements tokenized carbon credits using Algorand Standard Assets (ASA):
+
+### Features
+
+#### 1. Fungible Carbon Credit Tokens (CCT)
+- **Tradeable emission reduction units** represented as ASA tokens
+- **Token Economics: 1 CCT = 10 tons CO2eq**
+- Example: 5000 tons reduction = 500 CCT tokens
+- 1 decimal place for fractional credits (0.1 CCT = 1 ton)
+- Total supply: 1 million tokens = 10 million credits (configurable)
+- Manager, reserve, freeze, and clawback controls for governance
+
+#### 2. Credit Issuance
+- Issue credits to suppliers for verified emission reductions
+- Each issuance linked to audit ID for traceability
+- On-chain record of reason and timestamp
+- Transferred from reserve address to recipient
+
+#### 3. Credit Retirement (Burn)
+- Permanently retire credits for carbon offsetting
+- Prevents double-counting of emission reductions
+- Records beneficiary and reason on-chain
+- Irreversible retirement for compliance
+
+#### 4. Audit Certificate NFTs
+- Unique 1-of-1 NFT for each completed audit
+- Contains audit metadata (supplier, score, emissions)
+- SHA-256 metadata hash for integrity
+- Links to full on-chain audit trail
+- Displayable proof of compliance
+
+### API Endpoints
+
+```bash
+# Create carbon credit token
+POST /api/tokens/create
+{
+  "total_credits": 10000000,
+  "unit_name": "CCT",
+  "asset_name": "CfoE Carbon Credit"
+}
+
+# Issue credits to supplier
+POST /api/tokens/issue
+{
+  "recipient_address": "ALGORAND_ADDRESS",
+  "amount": 5000.0,  # 5000 tons CO2eq = 500 CCT tokens
+  "reason": "Q1 2024 emission reduction",
+  "audit_id": "AUD-12345"
+}
+
+# Retire credits
+POST /api/tokens/retire
+{
+  "amount": 1000.0,  # 1000 tons CO2eq = 100 CCT tokens
+  "reason": "2024 Q1 carbon offset",
+  "beneficiary": "GreenCorp"
+}
+
+# Create audit certificate NFT
+POST /api/tokens/nft/create
+{
+  "supplier_name": "GreenCorp",
+  "audit_id": "AUD-12345",
+  "risk_score": 0.25,
+  "classification": "Low Risk",
+  "emissions": 2500.0,
+  "metadata_url": "ipfs://..."
+}
+
+# Get credit balance
+GET /api/tokens/balance/{address}
+
+# Get token summary
+GET /api/tokens/summary
+```
+
+### Testing
+
+```bash
+# Test complete token system
+python test_carbon_tokens.py
+```
+
+### Use Cases
+
+1. **Supplier Incentives**: Issue credits to suppliers who reduce emissions
+2. **Carbon Trading**: Transfer credits between parties for compliance
+3. **Offset Programs**: Retire credits to offset operational emissions
+4. **Compliance Proof**: NFT certificates for regulatory reporting
+5. **Transparency**: Full on-chain audit trail for all credit movements
+
+### Technical Implementation
+
+- **Token Standard**: Algorand Standard Asset (ASA)
+- **Token Type**: Fungible (CCT) and Non-Fungible (NFT certificates)
+- **Token Economics**: 1 CCT = 10 tons CO2eq
+- **Decimals**: 1 (allows 0.1 CCT = 1 ton precision)
+- **Supply Control**: Manager can modify configuration
+- **Reserve**: Holds uncirculated supply
+- **Freeze**: Can freeze accounts if needed
+- **Clawback**: Can revoke credits in case of fraud
 
 ---
 

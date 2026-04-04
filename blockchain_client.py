@@ -59,6 +59,7 @@ class CfoEBlockchainClient:
         """Connect to Algorand network."""
         try:
             from algosdk.v2client import algod
+            from algosdk import mnemonic, account
 
             if self.algod_token:
                 self.algod_client = algod.AlgodClient(self.algod_token, self.algod_server)
@@ -70,6 +71,19 @@ class CfoEBlockchainClient:
             status = self.algod_client.status()
             self.connected = True
             print(f"  [Blockchain] Connected to Algorand (round {status.get('last-round', 'N/A')})")
+            
+            # Auto-connect wallet if private key is in .env
+            env_key = os.getenv("ALGORAND_PRIVATE_KEY")
+            if env_key:
+                try:
+                    # Derive address from private key
+                    self.address = account.address_from_private_key(env_key)
+                    self.private_key = env_key
+                    self.wallet_connected = True
+                    print(f"  [Blockchain] Wallet auto-connected from .env: {self.address[:16]}...")
+                except Exception as e:
+                    print(f"  [Blockchain] WARNING: Invalid ALGORAND_PRIVATE_KEY in .env: {e}")
+            
             return True
 
         except ImportError:
@@ -480,6 +494,92 @@ class CfoEBlockchainClient:
             print(f"           Actual:   {actual_hash[:24]}...")
 
         return match
+
+    # ================================================================== #
+    #  CARBON CREDIT RECORDING
+    # ================================================================== #
+    
+    def record_carbon_credits(
+        self,
+        supplier_name: str,
+        audit_id: str,
+        credits_earned: int,
+        badges_earned: list[str],
+        total_credits: int,
+        esg_score: float,
+        streak_bonus: int = 0,
+        improvement_bonus: int = 0,
+    ) -> Dict[str, Any]:
+        """
+        Record carbon credit award on the Algorand blockchain.
+        
+        Creates an immutable record of credits earned for each audit,
+        allowing verification of the credit ledger.
+        
+        Args:
+            supplier_name: Supplier receiving credits
+            audit_id: Associated audit ID
+            credits_earned: Base credits earned
+            badges_earned: List of badges awarded
+            total_credits: New total credit balance
+            esg_score: ESG risk score
+            streak_bonus: Bonus credits from streak
+            improvement_bonus: Bonus credits from improvement
+            
+        Returns:
+            Dict with tx_id, credit details, and on_chain status
+        """
+        timestamp = datetime.now().isoformat()
+        
+        note_data = {
+            "type": "CfoE_CARBON_CREDITS",
+            "version": "1.0",
+            "supplier": supplier_name,
+            "audit_id": audit_id,
+            "credits_earned": credits_earned,
+            "streak_bonus": streak_bonus,
+            "improvement_bonus": improvement_bonus,
+            "total_credits_earned": credits_earned + streak_bonus + improvement_bonus,
+            "total_credits_balance": total_credits,
+            "badges_earned": badges_earned,
+            "esg_score": round(esg_score, 4),
+            "timestamp": timestamp,
+            "auditor_address": self.address if self.address else "N/A",
+        }
+        
+        tx_id = self._send_note_tx(note_data)
+        on_chain = tx_id is not None
+        
+        record = {
+            "supplier_name": supplier_name,
+            "audit_id": audit_id,
+            "credits_earned": credits_earned,
+            "streak_bonus": streak_bonus,
+            "improvement_bonus": improvement_bonus,
+            "total_credits": total_credits,
+            "badges_earned": badges_earned,
+            "esg_score": esg_score,
+            "tx_id": tx_id,
+            "on_chain": on_chain,
+            "timestamp": timestamp,
+        }
+        
+        if on_chain:
+            print(f"  [Blockchain] CARBON CREDITS recorded on-chain")
+            print(f"               Supplier:  {supplier_name}")
+            print(f"               Credits:   +{credits_earned + streak_bonus + improvement_bonus}")
+            print(f"               Total:     {total_credits}")
+            print(f"               Badges:    {', '.join(badges_earned) if badges_earned else 'None'}")
+            print(f"               TX:        {tx_id[:20]}...")
+        else:
+            local_id = f"CREDITS-{int(datetime.now().timestamp())}"
+            record["local_id"] = local_id
+            if self.wallet_connected:
+                print(f"  [Blockchain] Credits stored locally (wallet signing required)")
+            else:
+                print(f"  [Blockchain] Credits stored locally (wallet not connected)")
+        
+        return record
 
     # ================================================================== #
     #  LEGACY: Full audit record (backwards compatibility)

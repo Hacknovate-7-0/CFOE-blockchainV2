@@ -177,23 +177,6 @@ body::before{
 .conn-bar--disconnected{background:rgba(239,68,68,.18);color:var(--red);animation:pulse-badge 1.5s infinite}
 /* ── Utility ─────────────────────────────────────────────────────── */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
-/* ── Audit history ───────────────────────────────────────────────── */
-.audit-history{max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
-.audit-history::-webkit-scrollbar{width:5px}.audit-history::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-.audit-history-item{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 16px;border-radius:var(--radius-sm);
-  background:var(--bg-card-alt);border:1px solid var(--border);
-  font-size:.78rem;transition:all .2s;
-}
-.audit-history-item:hover{border-color:var(--border-glow);background:var(--bg-card)}
-.audit-history-item__badge{flex-shrink:0}
-.audit-history-item__content{flex:1;display:flex;flex-direction:column;gap:4px}
-.audit-history-item__header{display:flex;justify-content:space-between;align-items:center}
-.audit-history-item__supplier{font-weight:600;color:var(--text-primary)}
-.audit-history-item__time{font-family:var(--mono);font-size:.65rem;color:var(--text-muted)}
-.audit-history-item__meta{display:flex;gap:12px;font-size:.7rem;color:var(--text-secondary)}
-.audit-history-item__meta span{display:flex;align-items:center;gap:4px}
 </style>
 </head>
 <body>
@@ -266,20 +249,8 @@ body::before{
         <div class="empty-state">No violations recorded yet.</div>
       </div>
     </div>
-    <div class="card audit-panel" id="audit-panel">
-      <div class="section-title">Last Audit Result</div>
-      <div class="audit-panel__empty" id="audit-empty">No audit has been run yet. Click <strong>Run Audit Now</strong> to trigger one.</div>
-      <div id="audit-content" style="display:none"></div>
-    </div>
   </div>
 
-  <!-- ═══ Audit History ═══ -->
-  <div class="card">
-    <div class="section-title">Audit History</div>
-    <div class="audit-history" id="audit-history">
-      <div class="empty-state">Loading audit history...</div>
-    </div>
-  </div>
 
 </div>
 
@@ -672,8 +643,6 @@ async function loadAuditHistory() {
   }
 }
 
-// Refresh audit history every 10 seconds
-setInterval(loadAuditHistory, 10000);
 </script>
 </body>
 </html>

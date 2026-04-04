@@ -59,10 +59,11 @@
     walletModalBalance: document.getElementById('wallet-modal-balance'),
     walletModalNetwork: document.getElementById('wallet-modal-network'),
     walletModalConnection: document.getElementById('wallet-modal-connection'),
-    walletModalScoreAnchors: document.getElementById('wallet-modal-score-anchors'),
-    walletModalOnchainCount: document.getElementById('wallet-modal-onchain-count'),
-    walletModalHitlDecisions: document.getElementById('wallet-modal-hitl-decisions'),
-    walletModalReportHashes: document.getElementById('wallet-modal-report-hashes'),
+    walletModalTokenId: document.getElementById('wallet-modal-token-id'),
+    walletModalTokenBalance: document.getElementById('wallet-modal-token-balance'),
+    walletModalTokenSupply: document.getElementById('wallet-modal-token-supply'),
+    walletModalCreditsIssued: document.getElementById('wallet-modal-credits-issued'),
+    walletModalCreditsRetired: document.getElementById('wallet-modal-credits-retired'),
     walletCopyBtn: document.getElementById('wallet-copy-btn'),
     walletConnectModalBtn: document.getElementById('wallet-connect-modal-btn'),
     runBtn: document.getElementById('run-btn'),
@@ -295,17 +296,20 @@
           ? 'badge low'
           : 'badge moderate';
       }
-      if (elements.walletModalScoreAnchors) {
-        elements.walletModalScoreAnchors.textContent = String(data.score_anchors ?? 0);
+      if (elements.walletModalTokenId) {
+        elements.walletModalTokenId.textContent = data.token_id || 'Not Created';
       }
-      if (elements.walletModalOnchainCount) {
-        elements.walletModalOnchainCount.textContent = String(data.on_chain_count ?? 0);
+      if (elements.walletModalTokenBalance) {
+        elements.walletModalTokenBalance.textContent = `${data.token_balance || 0} CCT`;
       }
-      if (elements.walletModalHitlDecisions) {
-        elements.walletModalHitlDecisions.textContent = String(data.hitl_decisions ?? 0);
+      if (elements.walletModalTokenSupply) {
+        elements.walletModalTokenSupply.textContent = `${data.token_supply || 0} CCT`;
       }
-      if (elements.walletModalReportHashes) {
-        elements.walletModalReportHashes.textContent = String(data.report_hashes ?? 0);
+      if (elements.walletModalCreditsIssued) {
+        elements.walletModalCreditsIssued.textContent = `${data.credits_issued || 0} tons`;
+      }
+      if (elements.walletModalCreditsRetired) {
+        elements.walletModalCreditsRetired.textContent = `${data.credits_retired || 0} tons`;
       }
     } catch (error) {
       if (elements.blockchainStatus) {

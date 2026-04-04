@@ -11,7 +11,7 @@ from textwrap import wrap
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -31,6 +31,7 @@ from orchestrators.root_coordinator import create_root_coordinator
 
 from config.groq_config import get_groq_client
 from blockchain_client import get_blockchain_client
+from carbon_token_manager import get_token_manager
 
 try:
     from groq import Groq
@@ -221,8 +222,8 @@ Please provide a complete risk assessment and recommendations.
 """
 
 
-def build_fallback_report(req: AuditRequest, risk_data: dict[str, Any], policy_data: dict[str, Any]) -> str:
-    return (
+def build_fallback_report(req: AuditRequest, risk_data: dict[str, Any], policy_data: dict[str, Any], blockchain_data: dict[str, Any] = None, credit_data: dict[str, Any] = None) -> str:
+    report = (
         "Executive Summary\n"
         f"Supplier: {req.supplier_name}\n"
         f"Risk Score: {risk_data['risk_score']} ({risk_data['classification']})\n\n"
@@ -233,6 +234,51 @@ def build_fallback_report(req: AuditRequest, risk_data: dict[str, Any], policy_d
         "Recommended Action\n"
         f"{policy_data['recommended_action']}\n"
     )
+    
+    # Add carbon credits section
+    if credit_data:
+        report += "\n\n" + "="*60 + "\n"
+        report += "CARBON CREDITS AWARDED\n"
+        report += "="*60 + "\n\n"
+        report += f"Base Credits: {credit_data.get('credits_earned', 0)}\n"
+        if credit_data.get('streak_bonus', 0) > 0:
+            report += f"Streak Bonus: +{credit_data['streak_bonus']}\n"
+        if credit_data.get('improvement_bonus', 0) > 0:
+            report += f"Improvement Bonus: +{credit_data['improvement_bonus']}\n"
+        report += f"Total Earned: {credit_data.get('total_credits', 0)}\n"
+        report += f"New Balance: {credit_data.get('new_total', 0)} credits\n"
+        if credit_data.get('badges_earned'):
+            report += f"Badges: {', '.join(credit_data['badges_earned'])}\n"
+    
+    # Add blockchain verification section
+    if blockchain_data:
+        report += "\n\n" + "="*60 + "\n"
+        report += "BLOCKCHAIN VERIFICATION\n"
+        report += "="*60 + "\n\n"
+        
+        if blockchain_data.get("score_tx"):
+            report += f"Score Anchor TX: {blockchain_data['score_tx']}\n"
+        if blockchain_data.get("score_hash"):
+            report += f"Input Data Hash: {blockchain_data['score_hash']}\n"
+        if blockchain_data.get("report_hash"):
+            report += f"Report SHA-256: {blockchain_data['report_hash']}\n"
+        if blockchain_data.get("verification_code"):
+            report += f"Verification Code: {blockchain_data['verification_code']}\n"
+        if blockchain_data.get("report_tx"):
+            report += f"Report Hash TX: {blockchain_data['report_tx']}\n"
+        if blockchain_data.get("credit_tx"):
+            report += f"Carbon Credits TX: {blockchain_data['credit_tx']}\n"
+        if blockchain_data.get("hitl_tx"):
+            report += f"HITL Decision TX: {blockchain_data['hitl_tx']}\n"
+        
+        report += f"\nOn-Chain Status: {'✓ Verified' if blockchain_data.get('on_chain') else '✗ Local Only'}\n"
+        report += "\nTo verify this report:\n"
+        report += "1. Calculate SHA-256 hash of this report text\n"
+        report += "2. Compare with the Report SHA-256 above\n"
+        report += "3. Check transactions on Algorand Explorer:\n"
+        report += "   https://testnet.algoexplorer.io/tx/[TX_ID]\n"
+    
+    return report
 
 
 def run_audit(req: AuditRequest) -> dict[str, Any]:
@@ -292,8 +338,15 @@ def run_audit(req: AuditRequest) -> dict[str, Any]:
     policy_data = enforce_policy_hitl(risk_score=risk_data["risk_score"], supplier_name=req.supplier_name)
     broadcast_log_sync({"type": "success", "message": f"✓ Policy Decision: {policy_data['decision']}"})
 
+    # Prepare blockchain data for report
+    blockchain_data_for_report = {
+        "score_tx": score_anchor.get("tx_id") or score_anchor.get("local_id") if score_anchor else None,
+        "score_hash": score_anchor.get("data_hash") if score_anchor else None,
+        "on_chain": score_anchor.get("on_chain", False) if score_anchor else False
+    }
+
     report_source = "deterministic-fallback"
-    report_text = build_fallback_report(req, risk_data, policy_data)
+    report_text = build_fallback_report(req, risk_data, policy_data, blockchain_data_for_report, None)
     external_risk_score = 0.0
 
     client = get_client()
@@ -331,6 +384,10 @@ def run_audit(req: AuditRequest) -> dict[str, Any]:
     
     if report_hash_record:
         broadcast_log_sync({"type": "success", "message": f"✓ Report hash: {report_hash_record['verification_code']}"})
+        # Update blockchain data for report
+        blockchain_data_for_report["report_hash"] = report_hash_record.get("report_hash")
+        blockchain_data_for_report["verification_code"] = report_hash_record.get("verification_code")
+        blockchain_data_for_report["report_tx"] = report_hash_record.get("tx_id") or report_hash_record.get("local_id")
     else:
         broadcast_log_sync({"type": "error", "message": "✗ Report hash failed - returned None"})
         report_hash_record = {"local_id": "FALLBACK", "on_chain": False}
@@ -378,9 +435,31 @@ def run_audit(req: AuditRequest) -> dict[str, Any]:
 
     # ── Carbon Credit Scoring (runs on every audit) ───────────────
     broadcast_log_sync({"type": "info", "message": "[6/6] Calculating carbon credits..."})
+    credit_data_for_report = None
     try:
         credit_result = calculate_carbon_credits(result)
         result["carbon_credits"] = credit_result
+        
+        # Record credits on blockchain
+        bc = get_blockchain_client()
+        credit_record = bc.record_carbon_credits(
+            supplier_name=req.supplier_name,
+            audit_id=result["audit_id"],
+            credits_earned=credit_result["credits_earned"],
+            badges_earned=credit_result["badges_earned"],
+            total_credits=credit_result["new_total"],
+            esg_score=risk_data["risk_score"],
+            streak_bonus=credit_result["streak_bonus"],
+            improvement_bonus=credit_result["improvement_bonus"],
+        )
+        
+        # Add credit transaction to blockchain data
+        blockchain_data_for_report["credit_tx"] = credit_record.get("tx_id") or credit_record.get("local_id")
+        credit_data_for_report = credit_result
+        
+        # Regenerate report with all blockchain and credit details
+        report_text = build_fallback_report(req, risk_data, policy_data, blockchain_data_for_report, credit_data_for_report)
+        
         broadcast_log_sync({
             "type": "success",
             "message": (
@@ -392,6 +471,8 @@ def run_audit(req: AuditRequest) -> dict[str, Any]:
     except Exception as e:
         broadcast_log_sync({"type": "warning", "message": f"⚠ Credit calculation failed: {str(e)[:80]}"})
         result["carbon_credits"] = None
+        # Regenerate report without credits
+        report_text = build_fallback_report(req, risk_data, policy_data, blockchain_data_for_report, None)
 
     # HITL Workflow Pause: If human approval required, save to pending queue
     if policy_data["human_approval_required"]:
@@ -850,6 +931,7 @@ def download_pdf(audit_id: str) -> FileResponse:
 def blockchain_status() -> dict[str, Any]:
     """Get blockchain connection status and statistics"""
     bc = get_blockchain_client()
+    tm = get_token_manager()
     balance_info = bc.get_balance()
     history = bc.get_audit_history()
     
@@ -861,17 +943,22 @@ def blockchain_status() -> dict[str, Any]:
     # Show full address if wallet connected, otherwise show N/A
     display_address = bc.address if bc.wallet_connected else "N/A"
     
+    # Get token information
+    total_issued = sum(r["amount"] for r in tm.issued_credits)
+    total_retired = sum(r["amount"] for r in tm.retired_credits)
+    
     return {
         "connected": bc.connected and bc.wallet_connected,
         "address": display_address,
         "balance": balance_info.get("balance_algo", 0),
         "network": "Algorand Testnet" if bc.connected else "Offline",
-        "score_anchors": len(history["score_anchors"]),
-        "hitl_decisions": len(history["hitl_decisions"]),
-        "report_hashes": len(history["report_hashes"]),
-        "on_chain_count": sum(1 for r in history["score_anchors"] if r["on_chain"]),
         "wallet": _wallet_state,
         "wallet_connected": bc.wallet_connected,
+        "token_id": tm.carbon_credit_asset_id,
+        "token_balance": tm.get_credit_balance(bc.address) if bc.address else 0,
+        "token_supply": total_issued - total_retired,
+        "credits_issued": total_issued,
+        "credits_retired": total_retired,
     }
 
 
@@ -974,6 +1061,157 @@ def wallet_disconnect() -> dict[str, Any]:
     bc.disconnect_wallet()
     
     return {"status": "ok"}
+
+
+# ── Carbon Credit Token endpoints ─────────────────────────────────
+
+class TokenCreateRequest(BaseModel):
+    total_credits: int = Field(default=10_000_000, ge=1000)
+    unit_name: str = Field(default="CCT", max_length=8)
+    asset_name: str = Field(default="CfoE Carbon Credit", max_length=32)
+
+
+class CreditIssueRequest(BaseModel):
+    recipient_address: str = Field(min_length=58, max_length=58)
+    amount: float = Field(gt=0)
+    reason: str = Field(max_length=200)
+    audit_id: Optional[str] = None
+
+
+class CreditRetireRequest(BaseModel):
+    amount: float = Field(gt=0)
+    reason: str = Field(max_length=200)
+    beneficiary: str = Field(max_length=100)
+
+
+class NFTCreateRequest(BaseModel):
+    supplier_name: str
+    audit_id: str
+    risk_score: float
+    classification: str
+    emissions: float
+    metadata_url: str = ""
+
+
+@app.post("/api/tokens/create")
+def create_carbon_token(payload: TokenCreateRequest) -> dict[str, Any]:
+    """Create a new carbon credit token (ASA)."""
+    tm = get_token_manager()
+    asset_id = tm.create_carbon_credit_token(
+        total_credits=payload.total_credits,
+        unit_name=payload.unit_name,
+        asset_name=payload.asset_name,
+    )
+    
+    if asset_id:
+        return {
+            "status": "success",
+            "asset_id": asset_id,
+            "message": f"Carbon credit token created: {asset_id}"
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Token creation failed")
+
+
+@app.post("/api/tokens/issue")
+def issue_carbon_credits(payload: CreditIssueRequest) -> dict[str, Any]:
+    """Issue carbon credits to a recipient."""
+    tm = get_token_manager()
+    tx_id = tm.issue_credits(
+        recipient_address=payload.recipient_address,
+        amount=payload.amount,
+        reason=payload.reason,
+        audit_id=payload.audit_id,
+    )
+    
+    if tx_id:
+        return {
+            "status": "success",
+            "tx_id": tx_id,
+            "amount": payload.amount,
+            "message": f"Issued {payload.amount} CCT"
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Credit issuance failed")
+
+
+@app.post("/api/tokens/retire")
+def retire_carbon_credits(payload: CreditRetireRequest) -> dict[str, Any]:
+    """Retire (burn) carbon credits permanently."""
+    tm = get_token_manager()
+    tx_id = tm.retire_credits(
+        amount=payload.amount,
+        reason=payload.reason,
+        beneficiary=payload.beneficiary,
+    )
+    
+    if tx_id:
+        return {
+            "status": "success",
+            "tx_id": tx_id,
+            "amount": payload.amount,
+            "message": f"Retired {payload.amount} CCT permanently"
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Credit retirement failed")
+
+
+@app.post("/api/tokens/nft/create")
+def create_audit_nft(payload: NFTCreateRequest) -> dict[str, Any]:
+    """Create an audit certificate NFT."""
+    tm = get_token_manager()
+    asset_id = tm.create_audit_certificate_nft(
+        supplier_name=payload.supplier_name,
+        audit_id=payload.audit_id,
+        risk_score=payload.risk_score,
+        classification=payload.classification,
+        emissions=payload.emissions,
+        metadata_url=payload.metadata_url,
+    )
+    
+    if asset_id:
+        return {
+            "status": "success",
+            "asset_id": asset_id,
+            "message": f"Audit certificate NFT created: {asset_id}"
+        }
+    else:
+        raise HTTPException(status_code=500, detail="NFT creation failed")
+
+
+@app.get("/api/tokens/balance/{address}")
+def get_token_balance(address: str) -> dict[str, Any]:
+    """Get carbon credit balance for an address."""
+    tm = get_token_manager()
+    balance = tm.get_credit_balance(address)
+    
+    return {
+        "address": address,
+        "balance": balance,
+        "asset_id": tm.carbon_credit_asset_id,
+    }
+
+
+@app.get("/api/tokens/summary")
+def get_token_summary() -> dict[str, Any]:
+    """Get summary of all token operations."""
+    tm = get_token_manager()
+    
+    total_issued = sum(r["amount"] for r in tm.issued_credits)
+    total_retired = sum(r["amount"] for r in tm.retired_credits)
+    
+    return {
+        "asset_id": tm.carbon_credit_asset_id,
+        "total_issued": total_issued,
+        "total_retired": total_retired,
+        "circulating_supply": total_issued - total_retired,
+        "issuance_count": len(tm.issued_credits),
+        "retirement_count": len(tm.retired_credits),
+        "nft_count": len(tm.audit_nfts),
+        "issued_credits": tm.issued_credits,
+        "retired_credits": tm.retired_credits,
+        "audit_nfts": tm.audit_nfts,
+    }
 
 
 # Store active WebSocket connections
