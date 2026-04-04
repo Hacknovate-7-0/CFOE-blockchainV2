@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CfoE Control Room</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+
+<body>
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+
+    <main class="container">
+        <header class="hero">
+            <div class="hero-content">
+                <p class="hero-kicker">CfoE</p>
+                <h1>Supply Chain Carbon Control Room</h1>
+                <p class="hero-sub">Launch ESG audits on fresh supplier data, track risk movement, and compare decisions
+                    side by side.</p>
+            </div>
+            <button id="connect-wallet-btn" type="button" class="wallet-btn header-wallet-btn">
+                <span id="wallet-address" class="wallet-address">Connect Defly Wallet</span>
+            </button>
+        </header>
+
+        <nav class="tab-nav" id="tab-nav">
+            <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn" data-tab="leaderboard">Leaderboard</button>
+        </nav>
+
+        <div id="tab-dashboard" class="tab-content active">
+            <section id="dashboard-shell" class="dashboard-shell">
+                <div id="input-tile-wrap" class="input-tile-wrap">
+                    <section class="panel form-panel">
+                        <h2>Run New Audit</h2>
+                        <div id="chimney-visual" class="chimney-visual" data-risk="low" aria-hidden="true">
+                            <svg viewBox="0 0 220 120" class="chimney-svg">
+                                <rect x="86" y="22" width="46" height="62" class="chimney-stack" />
+                                <rect x="78" y="80" width="62" height="20" class="chimney-base" />
+                                <line x1="90" y1="38" x2="128" y2="38" class="chimney-line" />
+                                <line x1="90" y1="52" x2="128" y2="52" class="chimney-line" />
+                                <line x1="90" y1="66" x2="128" y2="66" class="chimney-line" />
+                            </svg>
+                            <span class="smoke smoke-a"></span>
+                            <span class="smoke smoke-b"></span>
+                            <span class="smoke smoke-c"></span>
+                        </div>
+                        <form id="audit-form">
+                            <div class="grid">
+                                <label>
+                                    Supplier Name
+                                    <input type="text" id="supplier_name" required minlength="2" maxlength="120"
+                                        placeholder="NovaSteel Components" />
+                                </label>
+                                <label>
+                                    Sector
+                                    <select id="sector" required>
+                                        <option value="default">General Industry</option>
+                                        <option value="aluminium">Aluminium</option>
+                                        <option value="refinery">Refinery</option>
+                                        <option value="petrochemicals">Petrochemicals</option>
+                                        <option value="textiles">Textiles</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    Annual CO2 Emissions (tons)
+                                    <input type="number" id="emissions" min="0" step="0.01" required
+                                        placeholder="2100" />
+                                </label>
+                                <label>
+                                    Regulatory Violations
+                                    <input type="number" id="violations" min="0" max="500" required placeholder="2" />
+                                </label>
+                                <label>
+                                    Production Volume (optional)
+                                    <input type="number" id="production_volume" min="0" step="0.01"
+                                        placeholder="1000" />
+                                </label>
+                                <label>
+                                    Production Unit
+                                    <select id="production_unit">
+                                        <option value="tonne">Tonne</option>
+                                        <option value="MBBLS">MBBLS (Thousand Barrels)</option>
+                                        <option value="NRGF">NRGF</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    Registry ID (optional)
+                                    <input type="text" id="registry_id" maxlength="20" placeholder="REFOE001MP"
+                                        onblur="validateRegistryId()" />
+                                    <div id="registry-validation" class="registry-validation"></div>
+                                </label>
+                                <label>
+                                    Extra Notes
+                                    <textarea id="notes" rows="2" maxlength="1000"
+                                        placeholder="Recent plant expansion, pending audit from regional regulator."></textarea>
+                                </label>
+                            </div>
+                            <button id="run-btn" class="run-btn-hidden" type="submit">Run Audit</button>
+                        </form>
+                        <p id="status" class="status"></p>
+                        <div id="log-panel" class="log-panel" style="display: none;">
+                            <h3>Audit Progress</h3>
+                            <div id="log-output" class="log-output"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <div id="results-tile-wrap" class="results-tile-wrap">
+                    <section class="panel metrics-panel">
+                        <h2>Portfolio Metrics</h2>
+                        <div id="metrics" class="metrics-grid"></div>
+                    </section>
+
+                    <section class="panel latest-panel">
+                        <h2>Latest Result</h2>
+                        <div id="latest-result" class="latest-empty">No audit executed yet.</div>
+                        <div id="blockchain-info" class="blockchain-info" style="display: none;"></div>
+                    </section>
+
+                    <section class="panel approval-panel" id="approval-panel" style="display: none;">
+                        <div class="approval-head">
+                            <h2>🚨 Pending Approvals (HITL)</h2>
+                            <p class="approval-hint">Critical risk audits require human review before completion</p>
+                        </div>
+                        <div id="approval-list" class="approval-list"></div>
+                    </section>
+
+                    <section class="panel history-panel">
+                        <div class="history-head">
+                            <h2>Audit History</h2>
+                            <div class="history-controls">
+                                <input type="text" id="search" placeholder="Filter by supplier..." />
+                                <select id="risk-filter">
+                                    <option value="ALL">All Risks</option>
+                                    <option value="Low Risk">Low Risk</option>
+                                    <option value="Moderate Risk">Moderate Risk</option>
+                                    <option value="Critical Risk">Critical Risk</option>
+                                </select>
+                                <button id="refresh-btn" type="button">Refresh</button>
+                                <button id="clear-btn" type="button" class="danger">Clear</button>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Compare</th>
+                                        <th>Supplier</th>
+                                        <th>Risk</th>
+                                        <th>Score</th>
+                                        <th>Decision</th>
+                                        <th>Info</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-body"></tbody>
+                            </table>
+                        </div>
+                        <div class="history-more-wrap">
+                            <button id="history-view-more-btn" type="button" style="display: none;">View more</button>
+                        </div>
+                    </section>
+
+                    <section class="panel compare-panel">
+                        <h2>Compare Selected Audits</h2>
+                        <p class="hint">Select exactly 2 history rows.</p>
+                        <div id="compare-box" class="compare-box">No pair selected.</div>
+                    </section>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-leaderboard" class="tab-content">
+            <section class="panel lb-podium-panel">
+                <h2>🏆 Top Performers</h2>
+                <div id="lb-podium" class="lb-podium">Loading...</div>
+            </section>
+
+            <section class="panel lb-table-panel">
+                <div class="history-head">
+                    <h2>Full Leaderboard</h2>
+                    <span id="lb-updated" class="lb-updated"></span>
+                </div>
+                <div class="table-wrap">
+                    <table class="lb-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Supplier</th>
+                                <th>Total Credits</th>
+                                <th>Badges</th>
+                                <th>Latest ESG</th>
+                                <th>Streak</th>
+                                <th>Audits</th>
+                                <th>Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lb-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel lb-glossary-panel">
+                <h2>Badge Glossary</h2>
+                <div class="lb-glossary">
+                    <div class="lb-glossary-item">
+                        <span class="lb-glossary-icon">🌿</span>
+                        <div>
+                            <strong>Green Champion</strong>
+                            <p>ESG score 0.00–0.20 — 100 credits</p>
+                        </div>
+                    </div>
+                    <div class="lb-glossary-item">
+                        <span class="lb-glossary-icon">🌱</span>
+                        <div>
+                            <strong>Eco Performer</strong>
+                            <p>ESG score 0.21–0.40 — 60 credits</p>
+                        </div>
+                    </div>
+                    <div class="lb-glossary-item">
+                        <span class="lb-glossary-icon">🔄</span>
+                        <div>
+                            <strong>In Progress</strong>
+                            <p>ESG score 0.41–0.60 — 20 credits</p>
+                        </div>
+                    </div>
+                    <div class="lb-glossary-item">
+                        <span class="lb-glossary-icon">🔥</span>
+                        <div>
+                            <strong>Consistency Streak</strong>
+                            <p>3+ audits below 0.40 — +50 bonus</p>
+                        </div>
+                    </div>
+                    <div class="lb-glossary-item">
+                        <span class="lb-glossary-icon">📈</span>
+                        <div>
+                            <strong>Improver</strong>
+                            <p>ESG improved by &gt;0.15 — +30 bonus</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <dialog id="download-dialog" class="download-dialog">
+            <form method="dialog" class="download-form" id="download-form">
+                <h3>Download Audit Output</h3>
+                <label>
+                    Audit
+                    <select id="download-audit-select" required></select>
+                </label>
+                <label>
+                    Format
+                    <select id="download-format-select" required></select>
+                </label>
+                <div class="download-actions">
+                    <button type="button" id="download-open-btn">Open Download</button>
+                    <button type="button" id="download-cancel-btn" class="danger">Cancel</button>
+                </div>
+            </form>
+        </dialog>
+
+        <dialog id="info-dialog" class="download-dialog">
+            <form method="dialog" class="download-form" id="info-form">
+                <h3>Audit Info</h3>
+                <div id="info-content" class="info-content"></div>
+                <div class="download-actions">
+                    <button type="button" id="info-close-btn" class="danger">Close</button>
+                </div>
+            </form>
+        </dialog>
+
+        <dialog id="approval-dialog" class="download-dialog">
+            <form method="dialog" class="download-form" id="approval-form">
+                <h3>Human Approval Required</h3>
+                <div id="approval-content" class="info-content"></div>
+                <label>
+                    Your Name
+                    <input type="text" id="approver-name" required minlength="2" maxlength="100"
+                        placeholder="John Doe" />
+                </label>
+                <label>
+                    Approval Notes
+                    <textarea id="approval-notes" rows="3" maxlength="500"
+                        placeholder="Reason for approval/rejection..."></textarea>
+                </label>
+                <div class="download-actions">
+                    <button type="button" id="approve-btn" class="approve-btn">Approve</button>
+                    <button type="button" id="reject-btn" class="danger">Reject</button>
+                    <button type="button" id="approval-cancel-btn" class="secondary">Cancel</button>
+                </div>
+            </form>
+        </dialog>
+
+        <dialog id="wallet-dialog" class="download-dialog">
+            <form method="dialog" class="download-form" id="wallet-form">
+                <div class="wallet-dialog-head">
+                    <h3>Wallet Connection</h3>
+                    <button type="button" id="wallet-close-btn" class="danger">X</button>
+                </div>
+                <div class="wallet-dialog-grid">
+                    <p><strong>Status:</strong> <span id="wallet-modal-status">Disconnected</span></p>
+                    <p><strong>Address:</strong> <span id="wallet-modal-address" class="wallet-address">N/A</span>
+                        <button type="button" id="wallet-copy-btn" class="wallet-btn">Copy</button>
+                    </p>
+                    <p><strong>Balance:</strong> <span id="wallet-modal-balance">0.000000 ALGO</span></p>
+                    <p><strong>Network:</strong> <span id="wallet-modal-network" class="badge moderate">Offline</span>
+                    </p>
+                    <p><strong>Connection:</strong> <span id="wallet-modal-connection"
+                            class="badge moderate">Offline</span></p>
+                    <p><strong>Score Anchors:</strong> <span id="wallet-modal-score-anchors">0</span></p>
+                    <p><strong>On-chain Anchors:</strong> <span id="wallet-modal-onchain-count">0</span></p>
+                    <p><strong>HITL Decisions:</strong> <span id="wallet-modal-hitl-decisions">0</span></p>
+                    <p><strong>Report Hashes:</strong> <span id="wallet-modal-report-hashes">0</span></p>
+                </div>
+                <div class="download-actions">
+                    <button type="button" id="wallet-connect-modal-btn" class="wallet-btn">Connect Defly Wallet</button>
+                    <button type="button" id="disconnect-wallet-btn" class="wallet-btn danger">Disconnect</button>
+                </div>
+            </form>
+        </dialog>
+    </main>
+
+    <script type="module" src="/static/wallet-connect.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

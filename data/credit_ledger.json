@@ -1,0 +1,63 @@
+{
+  "steelforge_industries_pvt._ltd.": {
+    "supplier_name": "SteelForge Industries Pvt. Ltd.",
+    "total_credits": 200,
+    "badge_history": [
+      {
+        "badge": "Green Champion",
+        "timestamp": "2026-04-04T01:46:35.834876+00:00"
+      },
+      {
+        "badge": "Green Champion",
+        "timestamp": "2026-04-04T01:46:41.149496+00:00"
+      }
+    ],
+    "audit_streak": [
+      {
+        "esg_score": 0.1,
+        "credits_earned": 100,
+        "badges": [
+          "Green Champion"
+        ],
+        "timestamp": "2026-04-04T01:46:41.149496+00:00"
+      },
+      {
+        "esg_score": 0.1,
+        "credits_earned": 100,
+        "badges": [
+          "Green Champion"
+        ],
+        "timestamp": "2026-04-04T01:46:35.834876+00:00"
+      }
+    ],
+    "current_streak": 2,
+    "longest_streak": 2,
+    "best_esg_score": 0.1,
+    "worst_esg_score": 0.1,
+    "total_audits": 2,
+    "credit_history": [
+      {
+        "credits_earned": 100,
+        "running_total": 100,
+        "esg_score": 0.1,
+        "badges": [
+          "Green Champion"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-04T01:46:35.834876+00:00"
+      },
+      {
+        "credits_earned": 100,
+        "running_total": 200,
+        "esg_score": 0.1,
+        "badges": [
+          "Green Champion"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-04T01:46:41.149496+00:00"
+      }
+    ]
+  }
+}

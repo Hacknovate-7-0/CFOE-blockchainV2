@@ -1,0 +1,333 @@
+{
+  "test_scenarios": [
+    {
+      "id": "scenario_1",
+      "name": "Aluminium Sector - Low Risk",
+      "data": {
+        "supplier_name": "European Aluminium Corp",
+        "sector": "aluminium",
+        "emissions": 9500,
+        "violations": 1,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "ALMOE003EU",
+        "notes": "Q1 2025 audit - excellent performance, on track for 2027 targets"
+      },
+      "expected": {
+        "emissions_intensity": 9.5,
+        "risk_classification": "Low Risk",
+        "registry_valid": true,
+        "hitl_required": false
+      }
+    },
+    {
+      "id": "scenario_2",
+      "name": "Refinery Sector - Critical Risk",
+      "data": {
+        "supplier_name": "Midwest Petroleum Refinery",
+        "sector": "refinery",
+        "emissions": 28000,
+        "violations": 5,
+        "production_volume": 1000,
+        "production_unit": "MBBLS",
+        "registry_id": "REFOE001MP",
+        "notes": "High emissions detected, multiple violations, requires immediate HITL review"
+      },
+      "expected": {
+        "emissions_intensity": 28.0,
+        "risk_classification": "Critical Risk",
+        "registry_valid": true,
+        "hitl_required": true
+      }
+    },
+    {
+      "id": "scenario_3",
+      "name": "Textiles Sector - Moderate Risk",
+      "data": {
+        "supplier_name": "Pacific Basin Textiles",
+        "sector": "textiles",
+        "emissions": 6500,
+        "violations": 2,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "TXTOE007PB",
+        "notes": "Mid-range performance, some improvement needed"
+      },
+      "expected": {
+        "emissions_intensity": 6.5,
+        "risk_classification": "Moderate Risk",
+        "registry_valid": true,
+        "hitl_required": false
+      }
+    },
+    {
+      "id": "scenario_4",
+      "name": "Petrochemicals Sector - Moderate Risk",
+      "data": {
+        "supplier_name": "Asia Petrochemicals Ltd",
+        "sector": "petrochemicals",
+        "emissions": 26000,
+        "violations": 3,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "PETOE009AS",
+        "notes": "Standard petrochemical operations, within acceptable range"
+      },
+      "expected": {
+        "emissions_intensity": 26.0,
+        "risk_classification": "Moderate Risk",
+        "registry_valid": true,
+        "hitl_required": false
+      }
+    },
+    {
+      "id": "scenario_5",
+      "name": "General Industry - Low Risk (No Registry)",
+      "data": {
+        "supplier_name": "GreenTech Manufacturing",
+        "sector": "default",
+        "emissions": 2500,
+        "violations": 0,
+        "production_volume": 500,
+        "production_unit": "tonne",
+        "registry_id": "",
+        "notes": "Small manufacturer, excellent compliance record"
+      },
+      "expected": {
+        "emissions_intensity": 5.0,
+        "risk_classification": "Low Risk",
+        "registry_valid": null,
+        "hitl_required": false
+      }
+    },
+    {
+      "id": "scenario_6",
+      "name": "Aluminium - Without Production Volume",
+      "data": {
+        "supplier_name": "Alpine Aluminium Works",
+        "sector": "aluminium",
+        "emissions": 3500,
+        "violations": 1,
+        "production_volume": null,
+        "production_unit": "tonne",
+        "registry_id": "",
+        "notes": "Testing fallback to absolute emissions scoring"
+      },
+      "expected": {
+        "emissions_intensity": null,
+        "risk_classification": "Moderate Risk",
+        "registry_valid": null,
+        "hitl_required": false
+      }
+    },
+    {
+      "id": "scenario_7_audit_1",
+      "name": "Multi-Year Trajectory - Audit 1",
+      "data": {
+        "supplier_name": "TrajectoryTest Corp",
+        "sector": "default",
+        "emissions": 5000,
+        "violations": 4,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "",
+        "notes": "Baseline audit - December 2024"
+      },
+      "expected": {
+        "emissions_intensity": 5.0,
+        "risk_classification": "Moderate Risk",
+        "trajectory_available": false
+      }
+    },
+    {
+      "id": "scenario_7_audit_2",
+      "name": "Multi-Year Trajectory - Audit 2",
+      "data": {
+        "supplier_name": "TrajectoryTest Corp",
+        "sector": "default",
+        "emissions": 4500,
+        "violations": 3,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "",
+        "notes": "Improvement shown - January 2025"
+      },
+      "expected": {
+        "emissions_intensity": 4.5,
+        "risk_classification": "Moderate Risk",
+        "trajectory_available": true,
+        "trend": "improving"
+      }
+    },
+    {
+      "id": "scenario_7_audit_3",
+      "name": "Multi-Year Trajectory - Audit 3",
+      "data": {
+        "supplier_name": "TrajectoryTest Corp",
+        "sector": "default",
+        "emissions": 4000,
+        "violations": 2,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "",
+        "notes": "Continued improvement - February 2025"
+      },
+      "expected": {
+        "emissions_intensity": 4.0,
+        "risk_classification": "Low Risk",
+        "trajectory_available": true,
+        "trend": "improving",
+        "on_track": true
+      }
+    },
+    {
+      "id": "scenario_8",
+      "name": "Invalid Registry ID",
+      "data": {
+        "supplier_name": "Unregistered Supplier Inc",
+        "sector": "refinery",
+        "emissions": 20000,
+        "violations": 2,
+        "production_volume": 800,
+        "production_unit": "MBBLS",
+        "registry_id": "INVALID123",
+        "notes": "Testing registry validation error handling"
+      },
+      "expected": {
+        "should_fail": true,
+        "error_code": 400,
+        "error_message": "Registry ID 'INVALID123' not found"
+      }
+    },
+    {
+      "id": "scenario_9",
+      "name": "High Production Efficiency - Excellent",
+      "data": {
+        "supplier_name": "EcoEfficient Industries",
+        "sector": "aluminium",
+        "emissions": 8000,
+        "violations": 0,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "",
+        "notes": "Excellent emissions intensity, well below expected"
+      },
+      "expected": {
+        "emissions_intensity": 8.0,
+        "risk_classification": "Low Risk",
+        "performance": "excellent"
+      }
+    },
+    {
+      "id": "scenario_10",
+      "name": "Poor Production Efficiency - Critical",
+      "data": {
+        "supplier_name": "HighEmissions Corp",
+        "sector": "textiles",
+        "emissions": 10000,
+        "violations": 6,
+        "production_volume": 1000,
+        "production_unit": "tonne",
+        "registry_id": "",
+        "notes": "Very high emissions intensity, exceeds expected by >120%"
+      },
+      "expected": {
+        "emissions_intensity": 10.0,
+        "risk_classification": "Critical Risk",
+        "hitl_required": true,
+        "performance": "poor"
+      }
+    }
+  ],
+  "quick_test_data": {
+    "low_risk": {
+      "supplier_name": "GreenTech Manufacturing",
+      "sector": "default",
+      "emissions": 2500,
+      "violations": 0,
+      "production_volume": 500,
+      "production_unit": "tonne",
+      "registry_id": "",
+      "notes": "Excellent compliance"
+    },
+    "moderate_risk": {
+      "supplier_name": "Pacific Basin Textiles",
+      "sector": "textiles",
+      "emissions": 6500,
+      "violations": 2,
+      "production_volume": 1000,
+      "production_unit": "tonne",
+      "registry_id": "TXTOE007PB",
+      "notes": "Mid-range performance"
+    },
+    "critical_risk": {
+      "supplier_name": "Midwest Petroleum Refinery",
+      "sector": "refinery",
+      "emissions": 28000,
+      "violations": 5,
+      "production_volume": 1000,
+      "production_unit": "MBBLS",
+      "registry_id": "REFOE001MP",
+      "notes": "Requires HITL review"
+    }
+  },
+  "valid_registry_ids": [
+    {
+      "id": "REFOE001MP",
+      "name": "Midwest Petroleum Refinery",
+      "sector": "refinery"
+    },
+    {
+      "id": "TXTOE007PB",
+      "name": "Pacific Basin Textiles",
+      "sector": "textiles"
+    },
+    {
+      "id": "ALMOE003EU",
+      "name": "European Aluminium Corp",
+      "sector": "aluminium"
+    },
+    {
+      "id": "PETOE009AS",
+      "name": "Asia Petrochemicals Ltd",
+      "sector": "petrochemicals"
+    }
+  ],
+  "sector_info": {
+    "aluminium": {
+      "low_threshold": 0.30,
+      "critical_threshold": 0.65,
+      "baseline_intensity": 15.0,
+      "target_intensity": 10.0,
+      "unit": "tCO2eq/tonne"
+    },
+    "refinery": {
+      "low_threshold": 0.35,
+      "critical_threshold": 0.70,
+      "baseline_intensity": 25.0,
+      "target_intensity": 18.0,
+      "unit": "tCO2eq/MBBLS"
+    },
+    "petrochemicals": {
+      "low_threshold": 0.40,
+      "critical_threshold": 0.75,
+      "baseline_intensity": 30.0,
+      "target_intensity": 22.0,
+      "unit": "tCO2eq/tonne"
+    },
+    "textiles": {
+      "low_threshold": 0.25,
+      "critical_threshold": 0.60,
+      "baseline_intensity": 8.0,
+      "target_intensity": 5.0,
+      "unit": "tCO2eq/tonne"
+    },
+    "default": {
+      "low_threshold": 0.40,
+      "critical_threshold": 0.70,
+      "baseline_intensity": 20.0,
+      "target_intensity": 15.0,
+      "unit": "tCO2eq/tonne"
+    }
+  }
+}
