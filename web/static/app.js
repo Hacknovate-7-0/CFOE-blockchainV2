@@ -94,6 +94,11 @@
     lbData: [],
     lbLastFetched: null,
     lbInterval: null,
+    tokenData: {
+      issued: [],
+      retired: [],
+      nfts: [],
+    },
   };
 
   const DOWNLOADABLE_FORMATS = ['pdf', 'docx'];
@@ -208,6 +213,25 @@
   };
 
   // ============================================
+  // Loading Banner Functions
+  // ============================================
+  const showLoading = (message = 'Processing...') => {
+    const banner = document.getElementById('loading-banner');
+    const text = document.getElementById('loading-text');
+    if (banner && text) {
+      text.textContent = message;
+      banner.style.display = 'block';
+    }
+  };
+
+  const hideLoading = () => {
+    const banner = document.getElementById('loading-banner');
+    if (banner) {
+      banner.style.display = 'none';
+    }
+  };
+
+  // ============================================
   // API Calls
   // ============================================
   const fetchMetrics = async () => {
@@ -246,7 +270,7 @@
         elements.blockchainStatus.innerHTML = `
         <div class="blockchain-grid">
           <div class="blockchain-item">
-            <span class="blockchain-label">Network:</span>
+            <span class="blockchain-label">Connection:</span>
             <span>${statusBadge}</span>
           </div>
           <div class="blockchain-item">
@@ -259,30 +283,22 @@
           </div>
           <div class="blockchain-item">
             <span class="blockchain-label">Address:</span>
-            <span class="blockchain-value">${data.address}</span>
+            <span class="blockchain-value">${truncateAddress(data.address)}</span>
           </div>
           <div class="blockchain-item">
             <span class="blockchain-label">Balance:</span>
-            <span class="blockchain-value">${data.balance.toFixed(6)} ALGO</span>
+            <span class="blockchain-value">${(data.balance || 0).toFixed(6)} ALGO</span>
           </div>
           <div class="blockchain-item">
-            <span class="blockchain-label">Score Anchors:</span>
-            <span class="blockchain-value">${data.score_anchors} (${data.on_chain_count} on-chain)</span>
-          </div>
-          <div class="blockchain-item">
-            <span class="blockchain-label">HITL Decisions:</span>
-            <span class="blockchain-value">${data.hitl_decisions}</span>
-          </div>
-          <div class="blockchain-item">
-            <span class="blockchain-label">Report Hashes:</span>
-            <span class="blockchain-value">${data.report_hashes}</span>
+            <span class="blockchain-label">Token Balance:</span>
+            <span class="blockchain-value">${(data.token_balance || 0).toFixed(1)} CCT</span>
           </div>
         </div>
       `;
       }
 
       if (elements.walletModalBalance) {
-        elements.walletModalBalance.textContent = `${data.balance.toFixed(6)} ALGO`;
+        elements.walletModalBalance.textContent = `${(data.balance || 0).toFixed(6)} ALGO`;
       }
       if (elements.walletModalNetwork) {
         elements.walletModalNetwork.textContent = data.network;
@@ -300,16 +316,16 @@
         elements.walletModalTokenId.textContent = data.token_id || 'Not Created';
       }
       if (elements.walletModalTokenBalance) {
-        elements.walletModalTokenBalance.textContent = `${data.token_balance || 0} CCT`;
+        elements.walletModalTokenBalance.textContent = `${(data.token_balance || 0).toFixed(1)} CCT`;
       }
       if (elements.walletModalTokenSupply) {
-        elements.walletModalTokenSupply.textContent = `${data.token_supply || 0} CCT`;
+        elements.walletModalTokenSupply.textContent = `${(data.token_supply || 0).toFixed(1)} CCT`;
       }
       if (elements.walletModalCreditsIssued) {
-        elements.walletModalCreditsIssued.textContent = `${data.credits_issued || 0} tons`;
+        elements.walletModalCreditsIssued.textContent = `${(data.credits_issued || 0).toFixed(1)} tons`;
       }
       if (elements.walletModalCreditsRetired) {
-        elements.walletModalCreditsRetired.textContent = `${data.credits_retired || 0} tons`;
+        elements.walletModalCreditsRetired.textContent = `${(data.credits_retired || 0).toFixed(1)} tons`;
       }
     } catch (error) {
       if (elements.blockchainStatus) {
@@ -386,6 +402,9 @@
       return;
     }
 
+    const analysisId = `analysis-${item.audit_id}`;
+    const analysisBtnId = `analysis-toggle-${item.audit_id}`;
+
     elements.latestResult.innerHTML = `
       <div class="latest-block">
         <div class="badges">
@@ -404,11 +423,31 @@
         <div><strong>Action:</strong> ${item.recommended_action}</div>
         ${item.approver_name ? `<div><strong>Approved by:</strong> ${item.approver_name} on ${formatDate(item.approval_timestamp)}</div>` : ''}
         ${item.approval_notes ? `<div><strong>Approval Notes:</strong> ${item.approval_notes}</div>` : ''}
+        <div class="analysis-toggle-row">
+          <button id="${analysisBtnId}" type="button" class="analysis-toggle-btn">Show Analysis</button>
+        </div>
+        <div id="${analysisId}" class="report-wrap" hidden>
+          <div class="report">${item.report_text || 'No report generated.'}</div>
+        </div>
         <div id="trajectory-info" style="margin-top: 1rem;"></div>
-        <div class="report">${item.report_text || 'No report generated.'}</div>
         ${item.carbon_credits ? renderCreditsHTML(item.carbon_credits) : ''}
       </div>
     `;
+
+    const analysisEl = document.getElementById(analysisId);
+    const analysisBtnEl = document.getElementById(analysisBtnId);
+    if (analysisEl && analysisBtnEl) {
+      analysisBtnEl.addEventListener('click', () => {
+        const hidden = analysisEl.hasAttribute('hidden');
+        if (hidden) {
+          analysisEl.removeAttribute('hidden');
+          analysisBtnEl.textContent = 'Hide Analysis';
+        } else {
+          analysisEl.setAttribute('hidden', '');
+          analysisBtnEl.textContent = 'Show Analysis';
+        }
+      });
+    }
 
     if (item.blockchain) {
       const bc = item.blockchain;
@@ -1040,18 +1079,66 @@ ${item.report_text || 'No report generated.'}</div>
 
       if (data.connected && data.address) {
         const shortAddr = truncateAddress(data.address);
+        
+        // Update header button
         elements.walletAddress.innerHTML = `<span class="wallet-connected">● ${shortAddr}</span>`;
+        if (elements.connectWalletBtn) {
+          elements.connectWalletBtn.classList.add('wallet-connected-btn');
+        }
+        
+        // Update modal
         if (elements.walletModalStatus) {
           elements.walletModalStatus.innerHTML = '<span class="wallet-connected">Connected</span>';
         }
         if (elements.walletModalAddress) {
-          elements.walletModalAddress.textContent = shortAddr;
+          elements.walletModalAddress.textContent = data.address;
         }
         if (elements.disconnectWalletBtn) {
           elements.disconnectWalletBtn.style.display = 'inline-block';
         }
+        if (elements.walletConnectModalBtn) {
+          elements.walletConnectModalBtn.textContent = 'Connected';
+          elements.walletConnectModalBtn.disabled = true;
+        }
+        
+        // Fetch token summary for wallet modal
+        try {
+          const tokenRes = await fetch('/api/tokens/summary');
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json();
+            if (elements.walletModalTokenId) {
+              elements.walletModalTokenId.textContent = tokenData.asset_id || 'Not Created';
+            }
+            if (elements.walletModalTokenSupply) {
+              elements.walletModalTokenSupply.textContent = `${(tokenData.total_supply || 0).toFixed(1)} CCT`;
+            }
+            if (elements.walletModalCreditsIssued) {
+              elements.walletModalCreditsIssued.textContent = `${(tokenData.total_issued || 0).toFixed(1)} tons`;
+            }
+            if (elements.walletModalCreditsRetired) {
+              elements.walletModalCreditsRetired.textContent = `${(tokenData.total_retired || 0).toFixed(1)} tons`;
+            }
+            
+            // Fetch user balance
+            const balanceRes = await fetch(`/api/tokens/balance/${data.address}`);
+            if (balanceRes.ok) {
+              const balanceData = await balanceRes.json();
+              if (elements.walletModalTokenBalance) {
+                elements.walletModalTokenBalance.textContent = `${(balanceData.balance?.tokens || 0).toFixed(1)} CCT`;
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch token data for wallet modal:', err);
+        }
       } else {
+        // Update header button
         elements.walletAddress.textContent = 'Connect Defly Wallet';
+        if (elements.connectWalletBtn) {
+          elements.connectWalletBtn.classList.remove('wallet-connected-btn');
+        }
+        
+        // Update modal
         if (elements.walletModalStatus) {
           elements.walletModalStatus.textContent = 'Disconnected';
         }
@@ -1060,6 +1147,10 @@ ${item.report_text || 'No report generated.'}</div>
         }
         if (elements.disconnectWalletBtn) {
           elements.disconnectWalletBtn.style.display = 'none';
+        }
+        if (elements.walletConnectModalBtn) {
+          elements.walletConnectModalBtn.textContent = 'Connect Defly Wallet';
+          elements.walletConnectModalBtn.disabled = false;
         }
       }
     } catch (error) {
@@ -1082,6 +1173,7 @@ ${item.report_text || 'No report generated.'}</div>
           setStatus('Wallet reconnected from previous session');
           await updateWalletStatus();
           await fetchBlockchainStatus();
+          await fetchTokenSummary();
           return;
         }
       }
@@ -1093,6 +1185,7 @@ ${item.report_text || 'No report generated.'}</div>
         setStatus(`Wallet connected${mode}: ${window.walletManager.getShortAddress()}`);
         await updateWalletStatus();
         await fetchBlockchainStatus();
+        await fetchTokenSummary();
       } else {
         setStatus(`Connection failed: ${result.error}`, true);
       }
@@ -1184,6 +1277,366 @@ ${item.report_text || 'No report generated.'}</div>
     if (elements.disconnectWalletBtn) {
       elements.disconnectWalletBtn.addEventListener('click', disconnectWallet);
     }
+    
+    // Token management event listeners
+    const createTokenForm = document.getElementById('create-token-form');
+    if (createTokenForm) {
+      createTokenForm.addEventListener('submit', handleCreateToken);
+    }
+    
+    const useMyAddressBtn = document.getElementById('use-my-address-btn');
+    if (useMyAddressBtn) {
+      useMyAddressBtn.addEventListener('click', () => {
+        const recipientInput = document.getElementById('issue-recipient');
+        if (state.walletStatus.address) {
+          recipientInput.value = state.walletStatus.address;
+        } else {
+          setStatus('Please connect wallet first', true);
+        }
+      });
+    }
+    
+    const issueCreditsForm = document.getElementById('issue-credits-form');
+    if (issueCreditsForm) {
+      issueCreditsForm.addEventListener('submit', handleIssueCredits);
+    }
+    
+    const retireCreditsForm = document.getElementById('retire-credits-form');
+    if (retireCreditsForm) {
+      retireCreditsForm.addEventListener('submit', handleRetireCredits);
+    }
+    
+    const createNFTForm = document.getElementById('create-nft-form');
+    if (createNFTForm) {
+      createNFTForm.addEventListener('submit', handleCreateNFT);
+    }
+    
+    // Token history tabs
+    document.querySelectorAll('.token-history-tab').forEach(btn => {
+      btn.addEventListener('click', (e) => switchTokenHistoryTab(e.target.dataset.historyTab));
+    });
+  };
+
+  // ============================================
+  // Token Management Functions
+  // ============================================
+  const fetchTokenSummary = async () => {
+    try {
+      const res = await fetch('/api/tokens/summary');
+      if (res.ok) {
+        const data = await res.json();
+        
+        // Update overview
+        const tokenId = data.asset_id || null;
+        document.getElementById('token-overview-id').textContent = tokenId || 'Not Created';
+        document.getElementById('token-overview-issued').textContent = `${(data.total_issued || 0).toFixed(1)} tons`;
+        document.getElementById('token-overview-retired').textContent = `${(data.total_retired || 0).toFixed(1)} tons`;
+        
+        // Show opt-in button if token exists and wallet connected
+        const optinBtn = document.getElementById('optin-token-btn');
+        if (optinBtn && tokenId && state.walletStatus.connected) {
+          // Check if user needs to opt-in (balance is null means not opted in)
+          const balanceRes = await fetch(`/api/tokens/balance/${state.walletStatus.address}`);
+          if (balanceRes.ok) {
+            const balanceData = await balanceRes.json();
+            // Show button only if user hasn't opted in yet (balance is null)
+            if (balanceData.balance === null) {
+              optinBtn.style.display = 'block';
+              optinBtn.onclick = () => handleOptIn(tokenId);
+            } else {
+              // User already opted in or is creator, hide button
+              optinBtn.style.display = 'none';
+            }
+          }
+        } else if (optinBtn) {
+          optinBtn.style.display = 'none';
+        }
+        
+        // Update balance if wallet connected
+        if (state.walletStatus.connected && state.walletStatus.address) {
+          const balanceRes = await fetch(`/api/tokens/balance/${state.walletStatus.address}`);
+          if (balanceRes.ok) {
+            const balanceData = await balanceRes.json();
+            const tokens = balanceData.balance?.tokens || 0;
+            const credits = balanceData.balance?.carbon_credits || 0;
+            document.getElementById('token-overview-balance').textContent = `${tokens.toFixed(1)} CCT`;
+            document.getElementById('token-overview-credits').textContent = `${credits.toFixed(0)} tons CO2eq`;
+          }
+        }
+        
+        // Store transaction history
+        state.tokenData.issued = data.issued_credits || [];
+        state.tokenData.retired = data.retired_credits || [];
+        state.tokenData.nfts = data.audit_nfts || [];
+        
+        renderTokenHistory();
+      }
+    } catch (err) {
+      console.error('Failed to fetch token summary', err);
+    }
+  };
+
+  const renderTokenHistory = () => {
+    // Render issued credits
+    const issuedBody = document.getElementById('token-issued-body');
+    if (state.tokenData.issued.length === 0) {
+      issuedBody.innerHTML = '<tr><td colspan="7" class="lb-empty">No credits issued yet</td></tr>';
+    } else {
+      issuedBody.innerHTML = state.tokenData.issued.map(item => `
+        <tr>
+          <td>${truncateAddress(item.recipient || 'N/A')}</td>
+          <td>${(item.carbon_credits || 0).toFixed(1)}</td>
+          <td>${(item.tokens_issued || 0).toFixed(1)}</td>
+          <td>${item.reason || 'N/A'}</td>
+          <td>${item.audit_id || 'N/A'}</td>
+          <td><code>${(item.tx_id || 'N/A').substring(0, 16)}...</code></td>
+          <td>${formatDate(item.timestamp)}</td>
+        </tr>
+      `).join('');
+    }
+    
+    // Render retired credits
+    const retiredBody = document.getElementById('token-retired-body');
+    if (state.tokenData.retired.length === 0) {
+      retiredBody.innerHTML = '<tr><td colspan="6" class="lb-empty">No credits retired yet</td></tr>';
+    } else {
+      retiredBody.innerHTML = state.tokenData.retired.map(item => `
+        <tr>
+          <td>${(item.carbon_credits || 0).toFixed(1)}</td>
+          <td>${(item.tokens_retired || 0).toFixed(1)}</td>
+          <td>${item.reason || 'N/A'}</td>
+          <td>${item.beneficiary || 'N/A'}</td>
+          <td><code>${(item.tx_id || 'N/A').substring(0, 16)}...</code></td>
+          <td>${formatDate(item.timestamp)}</td>
+        </tr>
+      `).join('');
+    }
+    
+    // Render NFTs
+    const nftsBody = document.getElementById('token-nfts-body');
+    if (state.tokenData.nfts.length === 0) {
+      nftsBody.innerHTML = '<tr><td colspan="7" class="lb-empty">No NFTs created yet</td></tr>';
+    } else {
+      nftsBody.innerHTML = state.tokenData.nfts.map(item => `
+        <tr>
+          <td><code>${item.asset_id || 'N/A'}</code></td>
+          <td>${item.supplier_name || 'N/A'}</td>
+          <td>${item.audit_id || 'N/A'}</td>
+          <td>${(item.risk_score || 0).toFixed(2)}</td>
+          <td>${classToBadge(item.classification || 'N/A')}</td>
+          <td><code>${(item.tx_id || 'N/A').substring(0, 16)}...</code></td>
+          <td>${formatDate(item.timestamp)}</td>
+        </tr>
+      `).join('');
+    }
+  };
+
+  const handleOptIn = async (assetId) => {
+    if (!state.walletStatus.connected) {
+      setStatus('Please connect wallet first', true);
+      return;
+    }
+    
+    try {
+      showLoading('Opting in to receive tokens...');
+      setStatus('Opting in to receive carbon credit tokens...');
+      const res = await fetch('/api/tokens/optin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asset_id: assetId }),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Opt-in failed');
+      }
+      
+      const result = await res.json();
+      setStatus('Successfully opted-in! You can now receive tokens.');
+      await fetchTokenSummary();
+      hideLoading();
+    } catch (error) {
+      setStatus(error.message, true);
+      hideLoading();
+    }
+  };
+
+  const handleCreateToken = async (e) => {
+    e.preventDefault();
+    
+    if (!state.walletStatus.connected) {
+      setStatus('Please connect wallet first', true);
+      return;
+    }
+    
+    const payload = {
+      total_credits: parseInt(document.getElementById('token-total-supply').value),
+      unit_name: document.getElementById('token-symbol').value,
+      asset_name: document.getElementById('token-name').value,
+    };
+    
+    try {
+      showLoading('Creating carbon credit token...');
+      setStatus('Creating carbon credit token...');
+      const res = await fetch('/api/tokens/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Token creation failed');
+      }
+      
+      const result = await res.json();
+      setStatus(`Token created successfully! Asset ID: ${result.asset_id}`);
+      await fetchTokenSummary();
+      await fetchBlockchainStatus();
+      hideLoading();
+    } catch (error) {
+      setStatus(error.message, true);
+      hideLoading();
+    }
+  };
+
+  const handleIssueCredits = async (e) => {
+    e.preventDefault();
+    
+    if (!state.walletStatus.connected) {
+      setStatus('Please connect wallet first', true);
+      return;
+    }
+    
+    const payload = {
+      recipient_address: document.getElementById('issue-recipient').value.trim(),
+      amount: parseFloat(document.getElementById('issue-amount').value),
+      reason: document.getElementById('issue-reason').value.trim(),
+      audit_id: document.getElementById('issue-audit-id').value.trim() || null,
+    };
+    
+    try {
+      showLoading('Issuing carbon credits...');
+      setStatus('Issuing carbon credits...');
+      const res = await fetch('/api/tokens/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Credit issuance failed');
+      }
+      
+      const result = await res.json();
+      setStatus(`Credits issued successfully! ${result.amount} tons CO2eq`);
+      e.target.reset();
+      // Wait for blockchain confirmation before refreshing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await fetchTokenSummary();
+      await fetchBlockchainStatus();
+      hideLoading();
+    } catch (error) {
+      setStatus(error.message, true);
+      hideLoading();
+    }
+  };
+
+  const handleRetireCredits = async (e) => {
+    e.preventDefault();
+    
+    if (!state.walletStatus.connected) {
+      setStatus('Please connect wallet first', true);
+      return;
+    }
+    
+    const payload = {
+      amount: parseFloat(document.getElementById('retire-amount').value),
+      reason: document.getElementById('retire-reason').value.trim(),
+      beneficiary: document.getElementById('retire-beneficiary').value.trim(),
+    };
+    
+    try {
+      showLoading('Retiring carbon credits...');
+      setStatus('Retiring carbon credits...');
+      const res = await fetch('/api/tokens/retire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Credit retirement failed');
+      }
+      
+      const result = await res.json();
+      setStatus(`Credits retired successfully! ${result.amount} tons CO2eq`);
+      e.target.reset();
+      // Wait for blockchain confirmation before refreshing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await fetchTokenSummary();
+      await fetchBlockchainStatus();
+      hideLoading();
+    } catch (error) {
+      setStatus(error.message, true);
+      hideLoading();
+    }
+  };
+
+  const handleCreateNFT = async (e) => {
+    e.preventDefault();
+    
+    if (!state.walletStatus.connected) {
+      setStatus('Please connect wallet first', true);
+      return;
+    }
+    
+    const payload = {
+      supplier_name: document.getElementById('nft-supplier').value.trim(),
+      audit_id: document.getElementById('nft-audit-id').value.trim(),
+      risk_score: parseFloat(document.getElementById('nft-risk-score').value),
+      classification: document.getElementById('nft-classification').value,
+      emissions: parseFloat(document.getElementById('nft-emissions').value),
+      metadata_url: '',
+    };
+    
+    try {
+      showLoading('Creating audit certificate NFT...');
+      setStatus('Creating audit certificate NFT...');
+      const res = await fetch('/api/tokens/nft/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'NFT creation failed');
+      }
+      
+      const result = await res.json();
+      setStatus(`NFT created successfully! Asset ID: ${result.asset_id}`);
+      e.target.reset();
+      await fetchTokenSummary();
+      hideLoading();
+    } catch (error) {
+      setStatus(error.message, true);
+      hideLoading();
+    }
+  };
+
+  const switchTokenHistoryTab = (tabName) => {
+    document.querySelectorAll('.token-history-tab').forEach(btn => {
+      if (btn.dataset.historyTab === tabName) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+    
+    document.querySelectorAll('.token-history-content').forEach(content => {
+      if (content.id === `token-history-${tabName}`) content.classList.add('active');
+      else content.classList.remove('active');
+    });
   };
 
   // ============================================
@@ -1370,6 +1823,8 @@ ${item.report_text || 'No report generated.'}</div>
         // Update time every second visually
         setInterval(updateLeaderboardTime, 1000);
       }
+    } else if (tabId === 'tokens') {
+      fetchTokenSummary();
     } else {
       if (state.lbInterval) {
         clearInterval(state.lbInterval);

@@ -68,6 +68,7 @@ class CfoEBlockchainClient:
                     "", self.algod_server, headers={"User-Agent": "algosdk"}
                 )
 
+            # Test connection
             status = self.algod_client.status()
             self.connected = True
             print(f"  [Blockchain] Connected to Algorand (round {status.get('last-round', 'N/A')})")
@@ -92,6 +93,7 @@ class CfoEBlockchainClient:
             return False
         except Exception as e:
             print(f"  [Blockchain] WARNING: Connection failed: {e}")
+            print(f"  [Blockchain] Continuing in offline mode - transactions will be stored locally")
             self.connected = False
             return False
 
@@ -504,7 +506,7 @@ class CfoEBlockchainClient:
         supplier_name: str,
         audit_id: str,
         credits_earned: int,
-        badges_earned: list[str],
+        badges_earned: List[str],
         total_credits: int,
         esg_score: float,
         streak_bonus: int = 0,

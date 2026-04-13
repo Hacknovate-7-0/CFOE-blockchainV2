@@ -167,17 +167,97 @@ class CarbonCreditTokenManager:
         audit_id: Optional[str] = None,
     ) -> Optional[str]:
         """
-        Issue carbon credits to a supplier for verified emission reductions.
+        Issue carbon credits by recording them in the ledger (no token transfer).
         
         Token Economics:
         - Input: carbon_credits in tons CO2eq
-        - Tokens issued: carbon_credits / 10
+        - Credits recorded: carbon_credits / 10 CCT tokens
         - Example: 5000 tons CO2eq = 500 CCT tokens
         
         Args:
-            recipient_address: Algorand address to receive tokens
+            recipient_address: Algorand address receiving credits
             carbon_credits: Carbon credits in tons CO2eq
             reason: Reason for issuance
+            audit_id: Associated audit ID for traceability
+            
+        Returns:
+            Transaction ID or None if failed
+        """
+        if not self.carbon_credit_asset_id:
+            print("  [Token] ERROR: Carbon credit token not created yet")
+            return None
+            
+        if not self.bc.connected or not self.bc.wallet_connected:
+            print("  [Token] ERROR: Wallet not connected")
+            return None
+            
+        try:
+            # Convert carbon credits to tokens: 10 credits = 1 token
+            tokens = carbon_credits / self.CREDITS_PER_TOKEN
+            
+            # Record issuance on-chain via note transaction (no asset transfer)
+            note_data = {
+                "type": "CfoE_CREDIT_ISSUANCE",
+                "recipient": recipient_address,
+                "carbon_credits": carbon_credits,
+                "tokens_issued": tokens,
+                "reason": reason,
+                "audit_id": audit_id or "N/A",
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+            tx_id = self.bc._send_note_tx(note_data)
+            
+            record = {
+                "recipient": recipient_address,
+                "carbon_credits": carbon_credits,
+                "tokens_issued": tokens,
+                "reason": reason,
+                "audit_id": audit_id,
+                "tx_id": tx_id,
+                "timestamp": datetime.now().isoformat(),
+            }
+            self.issued_credits.append(record)
+            
+            print(f"  [Token] CREDITS ISSUED")
+            print(f"          Recipient:      {recipient_address[:16]}...")
+            print(f"          Carbon Credits: {carbon_credits:,.0f} tons CO2eq")
+            print(f"          Tokens Issued:  {tokens:,.1f} CCT")
+            print(f"          Rate:           1 CCT = {self.CREDITS_PER_TOKEN} tons")
+            print(f"          Reason:         {reason}")
+            print(f"          Audit:          {audit_id or 'N/A'}")
+            if tx_id:
+                print(f"          TX:             {tx_id[:20]}...")
+            
+            return tx_id or "LOCAL"
+            
+        except Exception as e:
+            print(f"  [Token] ERROR issuing credits: {e}")
+            return None
+    
+    # ================================================================== #
+    #  CREDIT TRANSFER
+    # ================================================================== #
+
+    def transfer_credits(
+        self,
+        recipient_address: str,
+        carbon_credits: float,
+        reason: str,
+        audit_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Transfer carbon credit tokens to another address.
+        
+        Token Economics:
+        - Input: carbon_credits in tons CO2eq
+        - Tokens transferred: carbon_credits / 10
+        - Example: 1000 tons CO2eq = 100 CCT tokens transferred
+        
+        Args:
+            recipient_address: Algorand address to receive tokens
+            carbon_credits: Carbon credits in tons CO2eq to transfer
+            reason: Reason for transfer
             audit_id: Associated audit ID for traceability
             
         Returns:
@@ -201,6 +281,12 @@ class CarbonCreditTokenManager:
             # Convert to smallest unit (1 decimal place)
             amount_micro = int(tokens * 10)
             
+            # Check if user has enough balance
+            balance_info = self.get_credit_balance(self.bc.address)
+            if balance_info["tokens"] < tokens:
+                print(f"  [Token] ERROR: Insufficient balance. Have {balance_info['tokens']:.1f} CCT, need {tokens:.1f} CCT")
+                return None
+                
             txn = AssetTransferTxn(
                 sender=self.bc.address,
                 sp=params,
@@ -208,9 +294,9 @@ class CarbonCreditTokenManager:
                 amt=amount_micro,
                 index=self.carbon_credit_asset_id,
                 note=json.dumps({
-                    "type": "CfoE_CREDIT_ISSUANCE",
+                    "type": "CfoE_CREDIT_TRANSFER",
                     "carbon_credits": carbon_credits,
-                    "tokens_issued": tokens,
+                    "tokens_transferred": tokens,
                     "reason": reason,
                     "audit_id": audit_id or "N/A",
                     "timestamp": datetime.now().isoformat(),
@@ -229,19 +315,20 @@ class CarbonCreditTokenManager:
             
             record = {
                 "recipient": recipient_address,
+                "sender": self.bc.address,
                 "carbon_credits": carbon_credits,
-                "tokens_issued": tokens,
+                "tokens_transferred": tokens,
                 "reason": reason,
                 "audit_id": audit_id,
                 "tx_id": tx_id,
                 "timestamp": datetime.now().isoformat(),
             }
-            self.issued_credits.append(record)
             
-            print(f"  [Token] CREDITS ISSUED")
-            print(f"          Recipient:      {recipient_address[:16]}...")
+            print(f"  [Token] CREDITS TRANSFERRED")
+            print(f"          From:           {self.bc.address[:16]}...")
+            print(f"          To:             {recipient_address[:16]}...")
             print(f"          Carbon Credits: {carbon_credits:,.0f} tons CO2eq")
-            print(f"          Tokens Issued:  {tokens:,.1f} CCT")
+            print(f"          Tokens:         {tokens:,.1f} CCT")
             print(f"          Rate:           1 CCT = {self.CREDITS_PER_TOKEN} tons")
             print(f"          Reason:         {reason}")
             print(f"          Audit:          {audit_id or 'N/A'}")
@@ -250,9 +337,10 @@ class CarbonCreditTokenManager:
             return tx_id
             
         except Exception as e:
-            print(f"  [Token] ERROR issuing credits: {e}")
+            print(f"  [Token] ERROR transferring credits: {e}")
             return None
-    
+
+
     # ================================================================== #
     #  CREDIT RETIREMENT (BURN)
     # ================================================================== #
@@ -264,12 +352,13 @@ class CarbonCreditTokenManager:
         beneficiary: str,
     ) -> Optional[str]:
         """
-        Permanently retire (burn) carbon credits.
+        Permanently retire (burn) carbon credits by sending to creator (reserve).
         
         Token Economics:
         - Input: carbon_credits in tons CO2eq
         - Tokens retired: carbon_credits / 10
         - Example: 1000 tons CO2eq = 100 CCT tokens retired
+        - Tokens are sent back to reserve and marked as retired
         
         Args:
             carbon_credits: Carbon credits to retire in tons CO2eq
@@ -290,17 +379,24 @@ class CarbonCreditTokenManager:
         try:
             from algosdk.transaction import AssetTransferTxn, wait_for_confirmation
             
-            burn_address = self.bc.address
+            # Send tokens back to reserve (creator address) to retire them
+            reserve_address = self.bc.address
             params = self.bc.algod_client.suggested_params()
             
             # Convert carbon credits to tokens
             tokens = carbon_credits / self.CREDITS_PER_TOKEN
             amount_micro = int(tokens * 10)
             
+            # Check if user has enough balance
+            balance_info = self.get_credit_balance(self.bc.address)
+            if balance_info["tokens"] < tokens:
+                print(f"  [Token] ERROR: Insufficient balance. Have {balance_info['tokens']:.1f} CCT, need {tokens:.1f} CCT")
+                return None
+            
             txn = AssetTransferTxn(
                 sender=self.bc.address,
                 sp=params,
-                receiver=burn_address,
+                receiver=reserve_address,  # Send to reserve to retire
                 amt=amount_micro,
                 index=self.carbon_credit_asset_id,
                 note=json.dumps({

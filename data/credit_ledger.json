@@ -1,7 +1,7 @@
 {
   "steelforge_industries_pvt._ltd.": {
     "supplier_name": "SteelForge Industries Pvt. Ltd.",
-    "total_credits": 520,
+    "total_credits": 680,
     "badge_history": [
       {
         "badge": "Green Champion",
@@ -58,9 +58,97 @@
       {
         "badge": "Improver",
         "timestamp": "2026-04-04T06:19:10.529425+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-04T07:36:36.596076+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-04T07:51:35.237745+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-04T07:51:40.588945+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-04T08:11:51.262611+00:00"
+      },
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-04T08:11:51.262611+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-06T05:31:40.581268+00:00"
+      },
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-06T05:31:40.581268+00:00"
       }
     ],
     "audit_streak": [
+      {
+        "esg_score": 0.6,
+        "credits_earned": 50,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "timestamp": "2026-04-06T05:31:40.581268+00:00"
+      },
+      {
+        "esg_score": 0.75,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-06T05:31:35.160524+00:00"
+      },
+      {
+        "esg_score": 0.6,
+        "credits_earned": 50,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "timestamp": "2026-04-04T08:11:51.262611+00:00"
+      },
+      {
+        "esg_score": 0.83,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-04T08:11:45.719835+00:00"
+      },
+      {
+        "esg_score": 0.5,
+        "credits_earned": 20,
+        "badges": [
+          "In Progress"
+        ],
+        "timestamp": "2026-04-04T07:51:40.588945+00:00"
+      },
+      {
+        "esg_score": 0.55,
+        "credits_earned": 20,
+        "badges": [
+          "In Progress"
+        ],
+        "timestamp": "2026-04-04T07:51:35.237745+00:00"
+      },
+      {
+        "esg_score": 0.6,
+        "credits_earned": 20,
+        "badges": [
+          "In Progress"
+        ],
+        "timestamp": "2026-04-04T07:36:36.596076+00:00"
+      },
+      {
+        "esg_score": 0.7,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-04T07:36:31.255641+00:00"
+      },
       {
         "esg_score": 0.8,
         "credits_earned": 30,
@@ -187,7 +275,7 @@
     "longest_streak": 2,
     "best_esg_score": 0.1,
     "worst_esg_score": 1.0,
-    "total_audits": 16,
+    "total_audits": 24,
     "credit_history": [
       {
         "credits_earned": 100,
@@ -357,6 +445,90 @@
         "streak_bonus": 0,
         "improvement_bonus": 30,
         "timestamp": "2026-04-04T06:19:10.529425+00:00"
+      },
+      {
+        "credits_earned": 0,
+        "running_total": 520,
+        "esg_score": 0.7,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-04T07:36:31.255641+00:00"
+      },
+      {
+        "credits_earned": 20,
+        "running_total": 540,
+        "esg_score": 0.6,
+        "badges": [
+          "In Progress"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-04T07:36:36.596076+00:00"
+      },
+      {
+        "credits_earned": 20,
+        "running_total": 560,
+        "esg_score": 0.55,
+        "badges": [
+          "In Progress"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-04T07:51:35.237745+00:00"
+      },
+      {
+        "credits_earned": 20,
+        "running_total": 580,
+        "esg_score": 0.5,
+        "badges": [
+          "In Progress"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-04T07:51:40.588945+00:00"
+      },
+      {
+        "credits_earned": 0,
+        "running_total": 580,
+        "esg_score": 0.83,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-04T08:11:45.719835+00:00"
+      },
+      {
+        "credits_earned": 50,
+        "running_total": 630,
+        "esg_score": 0.6,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-04T08:11:51.262611+00:00"
+      },
+      {
+        "credits_earned": 0,
+        "running_total": 630,
+        "esg_score": 0.75,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-06T05:31:35.160524+00:00"
+      },
+      {
+        "credits_earned": 50,
+        "running_total": 680,
+        "esg_score": 0.6,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-06T05:31:40.581268+00:00"
       }
     ]
   },

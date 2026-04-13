@@ -10,7 +10,7 @@ import json
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 
 LEDGER_PATH = Path(__file__).resolve().parent.parent / "data" / "credit_ledger.json"
 
@@ -19,7 +19,7 @@ _ledger_lock = threading.Lock()
 
 # ── Ledger persistence ────────────────────────────────────────────
 
-def _load_ledger() -> dict[str, Any]:
+def _load_ledger() -> Dict[str, Any]:
     """Load the credit ledger from disk."""
     LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not LEDGER_PATH.exists():
@@ -33,7 +33,7 @@ def _load_ledger() -> dict[str, Any]:
         return {}
 
 
-def _save_ledger(ledger: dict[str, Any]) -> None:
+def _save_ledger(ledger: Dict[str, Any]) -> None:
     """Write the credit ledger to disk."""
     LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
     LEDGER_PATH.write_text(json.dumps(ledger, indent=2), encoding="utf-8")
@@ -41,7 +41,7 @@ def _save_ledger(ledger: dict[str, Any]) -> None:
 
 # ── Core scoring logic ───────────────────────────────────────────
 
-def _base_credits_and_badge(esg_score: float) -> tuple[int, str | None]:
+def _base_credits_and_badge(esg_score: float) -> Tuple[int, Optional[str]]:
     """
     Determine base credits and badge from ESG risk score.
 
@@ -61,7 +61,7 @@ def _base_credits_and_badge(esg_score: float) -> tuple[int, str | None]:
         return 0, None
 
 
-def _check_streak(audit_history: list[dict]) -> tuple[int, str | None]:
+def _check_streak(audit_history: List[dict]) -> Tuple[int, Optional[str]]:
     """
     Check if the supplier has scored below 0.40 in 3 or more
     consecutive most-recent audits.
@@ -79,7 +79,7 @@ def _check_streak(audit_history: list[dict]) -> tuple[int, str | None]:
     return 50, "Consistency Streak"
 
 
-def _check_improvement(esg_score: float, audit_history: list[dict]) -> tuple[int, str | None]:
+def _check_improvement(esg_score: float, audit_history: List[dict]) -> Tuple[int, Optional[str]]:
     """
     If the supplier's ESG score improved (decreased) by more than 0.15
     compared to their previous audit, award an improvement bonus.
@@ -100,7 +100,7 @@ def _check_improvement(esg_score: float, audit_history: list[dict]) -> tuple[int
     return 0, None
 
 
-def _compute_current_streak(audit_streak: list[dict]) -> int:
+def _compute_current_streak(audit_streak: List[dict]) -> int:
     """Count how many consecutive most-recent audits scored below 0.40."""
     count = 0
     for entry in audit_streak:
@@ -164,11 +164,11 @@ def calculate_carbon_credits(audit_result: dict) -> dict:
         # Always keep the latest display name
         supplier_entry["supplier_name"] = supplier_name
         previous_total: int = supplier_entry["total_credits"]
-        audit_history: list[dict] = supplier_entry["audit_streak"]  # newest-first
+        audit_history: List[dict] = supplier_entry["audit_streak"]  # newest-first
 
         # 1. Base credits & badge
         base_credits, base_badge = _base_credits_and_badge(esg_score)
-        badges_earned: list[str] = []
+        badges_earned: List[str] = []
         if base_badge:
             badges_earned.append(base_badge)
 
@@ -260,7 +260,7 @@ def calculate_carbon_credits(audit_result: dict) -> dict:
     return result
 
 
-def get_supplier_credits(supplier_id: str) -> dict | None:
+def get_supplier_credits(supplier_id: str) -> Optional[dict]:
     """
     Return the full credit history for a single supplier.
 
@@ -289,7 +289,7 @@ def get_supplier_credits(supplier_id: str) -> dict | None:
     }
 
 
-def get_supplier_credit_history(supplier_id: str) -> dict | None:
+def get_supplier_credit_history(supplier_id: str) -> Optional[dict]:
     """
     Return a rich credit history payload for the supplier, designed for
     sparkline charts, badge timelines, streak history, and ESG trend.
@@ -332,7 +332,7 @@ def get_supplier_credit_history(supplier_id: str) -> dict | None:
 
     # Streak history: walk the audit_streak (newest-first) and build
     # a list of streak segments with start/end timestamps and length.
-    streak_segments: list[dict] = []
+    streak_segments: List[dict] = []
     audit_streak = entry.get("audit_streak", [])
     # audit_streak is newest-first; reverse to walk chronologically
     chronological = list(reversed(audit_streak))
@@ -378,7 +378,7 @@ def get_supplier_credit_history(supplier_id: str) -> dict | None:
     }
 
 
-def get_leaderboard() -> list[dict]:
+def get_leaderboard() -> List[dict]:
     """
     Return all suppliers sorted by total credits descending,
     with their badges and latest ESG score.
@@ -386,7 +386,7 @@ def get_leaderboard() -> list[dict]:
     with _ledger_lock:
         ledger = _load_ledger()
 
-    board: list[dict] = []
+    board: List[dict] = []
     for sid, entry in ledger.items():
         _ensure_rich_entry(entry)
 

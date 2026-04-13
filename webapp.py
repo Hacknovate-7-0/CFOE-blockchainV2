@@ -11,7 +11,7 @@ from textwrap import wrap
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -50,9 +50,9 @@ OUTPUT_CSV_PATH = OUTPUT_DIR / "audits_master.csv"
 
 lock = threading.Lock()
 log_queue = Queue()
-active_websockets: list[WebSocket] = []
+active_websockets: List[WebSocket] = []
 
-def broadcast_log_sync(log_msg: dict[str, Any]) -> None:
+def broadcast_log_sync(log_msg: Dict[str, Any]) -> None:
     """Put log in queue and try to send to active websockets"""
     log_queue.put(log_msg)
     # Create async task to broadcast
@@ -98,7 +98,7 @@ class AuditResponse(BaseModel):
     recommended_action: str
     report_text: str
     report_source: str
-    download_links: dict[str, str]
+    download_links: Dict[str, str]
     status: str  # "completed" or "pending_approval"
 
 
@@ -177,7 +177,7 @@ def ensure_storage() -> None:
             writer.writeheader()
 
 
-def load_history() -> list[dict[str, Any]]:
+def load_history() -> List[Dict[str, Any]]:
     ensure_storage()
     with lock:
         try:
@@ -188,12 +188,12 @@ def load_history() -> list[dict[str, Any]]:
             return []
 
 
-def save_history(history: list[dict[str, Any]]) -> None:
+def save_history(history: List[Dict[str, Any]]) -> None:
     with lock:
         HISTORY_PATH.write_text(json.dumps(history, indent=2), encoding="utf-8")
 
 
-def load_pending() -> list[dict[str, Any]]:
+def load_pending() -> List[Dict[str, Any]]:
     ensure_storage()
     with lock:
         try:
@@ -204,7 +204,7 @@ def load_pending() -> list[dict[str, Any]]:
             return []
 
 
-def save_pending(pending: list[dict[str, Any]]) -> None:
+def save_pending(pending: List[Dict[str, Any]]) -> None:
     with lock:
         PENDING_PATH.write_text(json.dumps(pending, indent=2), encoding="utf-8")
 
@@ -222,7 +222,7 @@ Please provide a complete risk assessment and recommendations.
 """
 
 
-def build_fallback_report(req: AuditRequest, risk_data: dict[str, Any], policy_data: dict[str, Any], blockchain_data: dict[str, Any] = None, credit_data: dict[str, Any] = None) -> str:
+def build_fallback_report(req: AuditRequest, risk_data: Dict[str, Any], policy_data: Dict[str, Any], blockchain_data: Optional[Dict[str, Any]] = None, credit_data: Optional[Dict[str, Any]] = None) -> str:
     report = (
         "Executive Summary\n"
         f"Supplier: {req.supplier_name}\n"
@@ -235,7 +235,7 @@ def build_fallback_report(req: AuditRequest, risk_data: dict[str, Any], policy_d
         f"{policy_data['recommended_action']}\n"
     )
     
-    # Add carbon credits section
+    # carbon credits
     if credit_data:
         report += "\n\n" + "="*60 + "\n"
         report += "CARBON CREDITS AWARDED\n"
@@ -250,7 +250,7 @@ def build_fallback_report(req: AuditRequest, risk_data: dict[str, Any], policy_d
         if credit_data.get('badges_earned'):
             report += f"Badges: {', '.join(credit_data['badges_earned'])}\n"
     
-    # Add blockchain verification section
+    # blockchain verification 
     if blockchain_data:
         report += "\n\n" + "="*60 + "\n"
         report += "BLOCKCHAIN VERIFICATION\n"
@@ -281,7 +281,7 @@ def build_fallback_report(req: AuditRequest, risk_data: dict[str, Any], policy_d
     return report
 
 
-def run_audit(req: AuditRequest) -> dict[str, Any]:
+def run_audit(req: AuditRequest) -> Dict[str, Any]:
     broadcast_log_sync({"type": "info", "message": f"Starting audit for {req.supplier_name}..."})
     
     # Check if wallet is connected
@@ -489,7 +489,7 @@ def run_audit(req: AuditRequest) -> dict[str, Any]:
     return result
 
 
-def _write_pdf(pdf_path: Path, result: dict[str, Any]) -> None:
+def _write_pdf(pdf_path: Path, result: Dict[str, Any]) -> None:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
@@ -613,7 +613,7 @@ def _write_pdf(pdf_path: Path, result: dict[str, Any]) -> None:
     doc.build(story)
 
 
-def _write_docx(docx_path: Path, result: dict[str, Any]) -> None:
+def _write_docx(docx_path: Path, result: Dict[str, Any]) -> None:
     doc = Document()
     doc.add_heading(f"CfoE Audit Report - {result['audit_id']}", level=1)
     doc.add_paragraph(f"Job ID: {result['job_id']}")
@@ -630,7 +630,7 @@ def _write_docx(docx_path: Path, result: dict[str, Any]) -> None:
     doc.save(str(docx_path))
 
 
-def export_audit_files(result: dict[str, Any]) -> dict[str, str]:
+def export_audit_files(result: Dict[str, Any]) -> Dict[str, str]:
     ensure_storage()
 
     safe_stem = result["audit_id"].lower()
@@ -697,7 +697,7 @@ def serve_index() -> FileResponse:
 
 
 @app.post("/api/audit", response_model=AuditResponse)
-async def create_audit(payload: AuditRequest) -> dict[str, Any]:
+async def create_audit(payload: AuditRequest) -> Dict[str, Any]:
     # Phase 2: Validate registry ID if provided
     if payload.registry_id and payload.registry_id.strip():
         validation = validate_registry_id(payload.registry_id)
@@ -733,20 +733,20 @@ async def create_audit(payload: AuditRequest) -> dict[str, Any]:
 
 
 @app.get("/api/audits")
-def list_audits(limit: int = 100) -> dict[str, Any]:
+def list_audits(limit: int = 100) -> Dict[str, Any]:
     history = load_history()
     return {"items": history[:max(1, min(limit, 500))], "count": len(history)}
 
 
 @app.get("/api/approvals")
-def list_pending_approvals() -> dict[str, Any]:
+def list_pending_approvals() -> Dict[str, Any]:
     """Get all audits pending human approval"""
     pending = load_pending()
     return {"items": pending, "count": len(pending)}
 
 
 @app.post("/api/approvals/{audit_id}/approve")
-def approve_audit(audit_id: str, approval: ApprovalRequest) -> dict[str, Any]:
+def approve_audit(audit_id: str, approval: ApprovalRequest) -> Dict[str, Any]:
     """Approve a pending audit and move it to history"""
     if approval.audit_id != audit_id:
         raise HTTPException(status_code=400, detail="Audit ID mismatch")
@@ -794,7 +794,7 @@ def approve_audit(audit_id: str, approval: ApprovalRequest) -> dict[str, Any]:
 
 
 @app.post("/api/approvals/{audit_id}/reject")
-def reject_audit(audit_id: str, approval: ApprovalRequest) -> dict[str, Any]:
+def reject_audit(audit_id: str, approval: ApprovalRequest) -> Dict[str, Any]:
     """Reject a pending audit"""
     if approval.audit_id != audit_id:
         raise HTTPException(status_code=400, detail="Audit ID mismatch")
@@ -842,20 +842,20 @@ def reject_audit(audit_id: str, approval: ApprovalRequest) -> dict[str, Any]:
 
 
 @app.delete("/api/audits")
-def clear_audits() -> dict[str, Any]:
+def clear_audits() -> Dict[str, Any]:
     save_history([])
     return {"status": "ok"}
 
 
 @app.delete("/api/approvals")
-def clear_pending_approvals() -> dict[str, Any]:
+def clear_pending_approvals() -> Dict[str, Any]:
     """Clear all pending approvals"""
     save_pending([])
     return {"status": "ok"}
 
 
 @app.get("/api/metrics")
-def metrics() -> dict[str, Any]:
+def metrics() -> Dict[str, Any]:
     history = load_history()
     if not history:
         return {
@@ -928,34 +928,41 @@ def download_pdf(audit_id: str) -> FileResponse:
 
 
 @app.get("/api/blockchain/status")
-def blockchain_status() -> dict[str, Any]:
+def blockchain_status() -> Dict[str, Any]:
     """Get blockchain connection status and statistics"""
     bc = get_blockchain_client()
     tm = get_token_manager()
-    balance_info = bc.get_balance()
-    history = bc.get_audit_history()
     
     # Force refresh connection status
     if not bc.connected:
         bc.connect()
-        balance_info = bc.get_balance()
+    
+    balance_info = bc.get_balance()
+    history = bc.get_audit_history()
     
     # Show full address if wallet connected, otherwise show N/A
     display_address = bc.address if bc.wallet_connected else "N/A"
     
     # Get token information
-    total_issued = sum(r["amount"] for r in tm.issued_credits)
-    total_retired = sum(r["amount"] for r in tm.retired_credits)
+    total_issued = sum(r["carbon_credits"] for r in tm.issued_credits)
+    total_retired = sum(r["carbon_credits"] for r in tm.retired_credits)
+    
+    # Get token balance (returns dict with tokens and carbon_credits)
+    token_balance_info = tm.get_credit_balance(bc.address) if bc.address else {"tokens": 0.0, "carbon_credits": 0.0}
+    
+    # Determine overall connection status
+    is_connected = bc.wallet_connected  # Show connected if wallet is connected
+    network_status = "Algorand Testnet" if bc.connected else "Offline"
     
     return {
-        "connected": bc.connected and bc.wallet_connected,
+        "connected": is_connected,
         "address": display_address,
         "balance": balance_info.get("balance_algo", 0),
-        "network": "Algorand Testnet" if bc.connected else "Offline",
+        "network": network_status,
         "wallet": _wallet_state,
         "wallet_connected": bc.wallet_connected,
         "token_id": tm.carbon_credit_asset_id,
-        "token_balance": tm.get_credit_balance(bc.address) if bc.address else 0,
+        "token_balance": token_balance_info.get("tokens", 0),
         "token_supply": total_issued - total_retired,
         "credits_issued": total_issued,
         "credits_retired": total_retired,
@@ -964,13 +971,13 @@ def blockchain_status() -> dict[str, Any]:
 
 
 @app.get("/api/registry/validate/{registry_id}")
-def validate_registry(registry_id: str) -> dict[str, Any]:
+def validate_registry(registry_id: str) -> Dict[str, Any]:
     """Validate entity registry ID"""
     return validate_registry_id(registry_id)
 
 
 @app.get("/api/registry/entity/{registry_id}")
-def get_entity(registry_id: str) -> dict[str, Any]:
+def get_entity(registry_id: str) -> Dict[str, Any]:
     """Get entity information by registry ID"""
     entity = get_entity_info(registry_id)
     if entity is None:
@@ -979,14 +986,14 @@ def get_entity(registry_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/trajectory/{supplier_name}")
-def get_trajectory(supplier_name: str) -> dict[str, Any]:
+def get_trajectory(supplier_name: str) -> Dict[str, Any]:
     """Get multi-year compliance trajectory for a supplier"""
     history = load_history()
     return calculate_trajectory(supplier_name, history)
 
 
 @app.get("/api/trajectory/{supplier_name}/compliance")
-def get_compliance_trajectory(supplier_name: str, baseline_year: int = 2023, target_year: int = 2027) -> dict[str, Any]:
+def get_compliance_trajectory(supplier_name: str, baseline_year: int = 2023, target_year: int = 2027) -> Dict[str, Any]:
     """Check if supplier is on track to meet compliance goals"""
     history = load_history()
     return check_compliance_trajectory(supplier_name, history, baseline_year, target_year)
@@ -995,7 +1002,7 @@ def get_compliance_trajectory(supplier_name: str, baseline_year: int = 2023, tar
 # ── Carbon Credit endpoints ──────────────────────────────────────
 
 @app.get("/api/credits/{supplier_id}")
-def get_credits(supplier_id: str) -> dict[str, Any]:
+def get_credits(supplier_id: str) -> Dict[str, Any]:
     """Return the full carbon credit history for a supplier."""
     data = get_supplier_credits(supplier_id)
     if data is None:
@@ -1004,7 +1011,7 @@ def get_credits(supplier_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/credits/{supplier_id}/history")
-def get_credit_history(supplier_id: str) -> dict[str, Any]:
+def get_credit_history(supplier_id: str) -> Dict[str, Any]:
     """Return rich credit history for charts and timelines:
     credits per audit (sparkline), badge timeline, streak history,
     and ESG score trend."""
@@ -1015,7 +1022,7 @@ def get_credit_history(supplier_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/leaderboard")
-def leaderboard() -> dict[str, Any]:
+def leaderboard() -> Dict[str, Any]:
     """Return all suppliers sorted by total credits descending,
     with their badges and latest ESG score."""
     board = get_leaderboard()
@@ -1024,7 +1031,7 @@ def leaderboard() -> dict[str, Any]:
 
 # ── Wallet endpoints ──────────────────────────────────────────────
 
-_wallet_state: dict[str, Any] = {"connected": False, "address": None}
+_wallet_state: Dict[str, Any] = {"connected": False, "address": None}
 
 
 class WalletConnectRequest(BaseModel):
@@ -1032,13 +1039,13 @@ class WalletConnectRequest(BaseModel):
 
 
 @app.get("/api/wallet/status")
-def wallet_status() -> dict[str, Any]:
+def wallet_status() -> Dict[str, Any]:
     """Return the current wallet connection state."""
     return _wallet_state
 
 
 @app.post("/api/wallet/connect")
-def wallet_connect(payload: WalletConnectRequest) -> dict[str, Any]:
+def wallet_connect(payload: WalletConnectRequest) -> Dict[str, Any]:
     """Register a wallet address from the frontend."""
     _wallet_state["connected"] = True
     _wallet_state["address"] = payload.address
@@ -1051,7 +1058,7 @@ def wallet_connect(payload: WalletConnectRequest) -> dict[str, Any]:
 
 
 @app.post("/api/wallet/disconnect")
-def wallet_disconnect() -> dict[str, Any]:
+def wallet_disconnect() -> Dict[str, Any]:
     """Clear the wallet connection."""
     _wallet_state["connected"] = False
     _wallet_state["address"] = None
@@ -1078,10 +1085,21 @@ class CreditIssueRequest(BaseModel):
     audit_id: Optional[str] = None
 
 
+class TokenOptInRequest(BaseModel):
+    asset_id: int = Field(gt=0)
+
+
 class CreditRetireRequest(BaseModel):
     amount: float = Field(gt=0)
     reason: str = Field(max_length=200)
     beneficiary: str = Field(max_length=100)
+
+
+class CreditTransferRequest(BaseModel):
+    recipient_address: str = Field(min_length=58, max_length=58)
+    amount: float = Field(gt=0)
+    reason: str = Field(max_length=200)
+    audit_id: Optional[str] = None
 
 
 class NFTCreateRequest(BaseModel):
@@ -1093,8 +1111,49 @@ class NFTCreateRequest(BaseModel):
     metadata_url: str = ""
 
 
+@app.post("/api/tokens/optin")
+def optin_to_token(payload: TokenOptInRequest) -> Dict[str, Any]:
+    """Opt-in to receive carbon credit tokens."""
+    tm = get_token_manager()
+    bc = get_blockchain_client()
+    
+    if not bc.connected or not bc.wallet_connected:
+        raise HTTPException(status_code=400, detail="Wallet not connected")
+    
+    try:
+        from algosdk.transaction import AssetTransferTxn, wait_for_confirmation
+        import os
+        
+        params = bc.algod_client.suggested_params()
+        
+        # Opt-in transaction: 0 amount transfer to self
+        txn = AssetTransferTxn(
+            sender=bc.address,
+            sp=params,
+            receiver=bc.address,
+            amt=0,
+            index=payload.asset_id,
+        )
+        
+        env_key = os.getenv("ALGORAND_PRIVATE_KEY")
+        if not env_key:
+            raise HTTPException(status_code=400, detail="ALGORAND_PRIVATE_KEY required")
+        
+        signed_txn = txn.sign(env_key)
+        tx_id = bc.algod_client.send_transaction(signed_txn)
+        wait_for_confirmation(bc.algod_client, tx_id, 4)
+        
+        return {
+            "status": "success",
+            "tx_id": tx_id,
+            "message": f"Successfully opted-in to asset {payload.asset_id}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Opt-in failed: {str(e)}")
+
+
 @app.post("/api/tokens/create")
-def create_carbon_token(payload: TokenCreateRequest) -> dict[str, Any]:
+def create_carbon_token(payload: TokenCreateRequest) -> Dict[str, Any]:
     """Create a new carbon credit token (ASA)."""
     tm = get_token_manager()
     asset_id = tm.create_carbon_credit_token(
@@ -1114,12 +1173,12 @@ def create_carbon_token(payload: TokenCreateRequest) -> dict[str, Any]:
 
 
 @app.post("/api/tokens/issue")
-def issue_carbon_credits(payload: CreditIssueRequest) -> dict[str, Any]:
+def issue_carbon_credits(payload: CreditIssueRequest) -> Dict[str, Any]:
     """Issue carbon credits to a recipient."""
     tm = get_token_manager()
     tx_id = tm.issue_credits(
         recipient_address=payload.recipient_address,
-        amount=payload.amount,
+        carbon_credits=payload.amount,
         reason=payload.reason,
         audit_id=payload.audit_id,
     )
@@ -1129,18 +1188,18 @@ def issue_carbon_credits(payload: CreditIssueRequest) -> dict[str, Any]:
             "status": "success",
             "tx_id": tx_id,
             "amount": payload.amount,
-            "message": f"Issued {payload.amount} CCT"
+            "message": f"Issued {payload.amount} tons CO2eq"
         }
     else:
         raise HTTPException(status_code=500, detail="Credit issuance failed")
 
 
 @app.post("/api/tokens/retire")
-def retire_carbon_credits(payload: CreditRetireRequest) -> dict[str, Any]:
+def retire_carbon_credits(payload: CreditRetireRequest) -> Dict[str, Any]:
     """Retire (burn) carbon credits permanently."""
     tm = get_token_manager()
     tx_id = tm.retire_credits(
-        amount=payload.amount,
+        carbon_credits=payload.amount,
         reason=payload.reason,
         beneficiary=payload.beneficiary,
     )
@@ -1150,14 +1209,37 @@ def retire_carbon_credits(payload: CreditRetireRequest) -> dict[str, Any]:
             "status": "success",
             "tx_id": tx_id,
             "amount": payload.amount,
-            "message": f"Retired {payload.amount} CCT permanently"
+            "message": f"Retired {payload.amount} tons CO2eq permanently"
         }
     else:
         raise HTTPException(status_code=500, detail="Credit retirement failed")
 
 
+@app.post("/api/tokens/transfer")
+def transfer_carbon_credits(payload: CreditTransferRequest) -> Dict[str, Any]:
+    """Transfer carbon credits to another address."""
+    tm = get_token_manager()
+    tx_id = tm.transfer_credits(
+        recipient_address=payload.recipient_address,
+        carbon_credits=payload.amount,
+        reason=payload.reason,
+        audit_id=payload.audit_id,
+    )
+    
+    if tx_id:
+        return {
+            "status": "success",
+            "tx_id": tx_id,
+            "amount": payload.amount,
+            "recipient": payload.recipient_address,
+            "message": f"Transferred {payload.amount} tons CO2eq"
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Credit transfer failed")
+
+
 @app.post("/api/tokens/nft/create")
-def create_audit_nft(payload: NFTCreateRequest) -> dict[str, Any]:
+def create_audit_nft(payload: NFTCreateRequest) -> Dict[str, Any]:
     """Create an audit certificate NFT."""
     tm = get_token_manager()
     asset_id = tm.create_audit_certificate_nft(
@@ -1180,7 +1262,7 @@ def create_audit_nft(payload: NFTCreateRequest) -> dict[str, Any]:
 
 
 @app.get("/api/tokens/balance/{address}")
-def get_token_balance(address: str) -> dict[str, Any]:
+def get_token_balance(address: str) -> Dict[str, Any]:
     """Get carbon credit balance for an address."""
     tm = get_token_manager()
     balance = tm.get_credit_balance(address)
@@ -1193,12 +1275,12 @@ def get_token_balance(address: str) -> dict[str, Any]:
 
 
 @app.get("/api/tokens/summary")
-def get_token_summary() -> dict[str, Any]:
+def get_token_summary() -> Dict[str, Any]:
     """Get summary of all token operations."""
     tm = get_token_manager()
     
-    total_issued = sum(r["amount"] for r in tm.issued_credits)
-    total_retired = sum(r["amount"] for r in tm.retired_credits)
+    total_issued = sum(r.get("carbon_credits", 0) for r in tm.issued_credits)
+    total_retired = sum(r.get("carbon_credits", 0) for r in tm.retired_credits)
     
     return {
         "asset_id": tm.carbon_credit_asset_id,
@@ -1215,10 +1297,7 @@ def get_token_summary() -> dict[str, Any]:
 
 
 # Store active WebSocket connections
-active_websockets: list[WebSocket] = []
-
-# Store active WebSocket connections
-active_websockets: list[WebSocket] = []
+active_websockets: List[WebSocket] = []
 
 @app.websocket("/ws/logs")
 async def websocket_logs(websocket: WebSocket):
