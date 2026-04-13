@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CfoE Carbon Emitter Simulator — SteelForge Industries</title>
+<meta name="description" content="Real-time carbon emission simulator dashboard for SteelForge Industries Pvt. Ltd., integrated with the CfoE ESG compliance engine.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+/* ── Reset & tokens ──────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-primary:#0a0e1a;
+  --bg-card:#111827;
+  --bg-card-alt:#1a2236;
+  --border:#1e293b;
+  --border-glow:rgba(56,189,248,.12);
+  --text-primary:#f1f5f9;
+  --text-secondary:#94a3b8;
+  --text-muted:#64748b;
+  --accent:#38bdf8;
+  --accent-dim:rgba(56,189,248,.15);
+  --green:#22c55e;
+  --green-dim:rgba(34,197,94,.15);
+  --yellow:#eab308;
+  --yellow-dim:rgba(234,179,8,.15);
+  --orange:#f97316;
+  --orange-dim:rgba(249,115,22,.15);
+  --red:#ef4444;
+  --red-dim:rgba(239,68,68,.15);
+  --purple:#a855f7;
+  --purple-dim:rgba(168,85,247,.15);
+  --radius:14px;
+  --radius-sm:8px;
+  --font:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono','Fira Code',monospace;
+  --shadow:0 4px 24px rgba(0,0,0,.45);
+  --shadow-lg:0 8px 40px rgba(0,0,0,.55);
+}
+html{font-size:15px;scroll-behavior:smooth}
+body{
+  font-family:var(--font);
+  background:var(--bg-primary);
+  color:var(--text-primary);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+/* ── Ambient background ──────────────────────────────────────────── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 20%,rgba(56,189,248,.06),transparent),
+    radial-gradient(ellipse 50% 40% at 80% 70%,rgba(168,85,247,.05),transparent);
+}
+/* ── Layout ──────────────────────────────────────────────────────── */
+.app{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:20px 24px 60px}
+/* ── Header ──────────────────────────────────────────────────────── */
+.header{
+  display:flex;align-items:center;flex-wrap:wrap;gap:14px;
+  padding:18px 24px;margin-bottom:24px;
+  background:linear-gradient(135deg,var(--bg-card) 0%,var(--bg-card-alt) 100%);
+  border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.header__logo{
+  width:42px;height:42px;border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  display:grid;place-items:center;font-weight:900;font-size:18px;color:#fff;
+  flex-shrink:0;
+}
+.header__title{flex:1;min-width:200px}
+.header__title h1{font-size:1.35rem;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.header__title p{font-size:.78rem;color:var(--text-secondary);margin-top:2px}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 12px;border-radius:20px;font-size:.72rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;
+}
+.badge--live{background:var(--green-dim);color:var(--green);border:1px solid rgba(34,197,94,.3)}
+.badge--stopped{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.badge--spike{background:var(--orange-dim);color:var(--orange);border:1px solid rgba(249,115,22,.3);animation:pulse-badge 1s ease-in-out infinite}
+.badge--shift{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(168,85,247,.3)}
+.badge__dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+@keyframes pulse-badge{0%,100%{opacity:1}50%{opacity:.55}}
+/* ── Grid ────────────────────────────────────────────────────────── */
+.grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+/* ── Metric card ─────────────────────────────────────────────────── */
+.card{
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;box-shadow:var(--shadow);transition:border-color .3s,box-shadow .3s;
+}
+.card:hover{border-color:var(--border-glow);box-shadow:var(--shadow-lg)}
+.metric{text-align:center}
+.metric__label{font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px}
+.metric__value{font-size:2rem;font-weight:800;line-height:1;font-family:var(--mono)}
+.metric__sub{font-size:.7rem;color:var(--text-secondary);margin-top:6px}
+/* ESG color classes */
+.esg-green{color:var(--green)}.esg-yellow{color:var(--yellow)}.esg-orange{color:var(--orange)}.esg-red{color:var(--red)}
+/* ── Section titles ──────────────────────────────────────────────── */
+.section-title{font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+/* ── Charts ──────────────────────────────────────────────────────── */
+.chart-wrap{position:relative;width:100%;height:280px}
+.chart-wrap canvas{width:100%!important;height:100%!important}
+/* ── Violations feed ─────────────────────────────────────────────── */
+.violations-feed{max-height:310px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
+.violations-feed::-webkit-scrollbar{width:5px}.violations-feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.viol-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 14px;border-radius:var(--radius-sm);
+  background:var(--bg-card-alt);border:1px solid var(--border);
+  font-size:.78rem;
+  animation:slide-in .35s ease;
+}
+@keyframes slide-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.viol-item__severity{flex-shrink:0;padding:2px 8px;border-radius:6px;font-weight:700;font-size:.65rem;text-transform:uppercase}
+.viol-item__severity--HIGH{background:var(--red-dim);color:var(--red)}
+.viol-item__severity--MEDIUM{background:var(--yellow-dim);color:var(--yellow)}
+.viol-item__severity--LOW{background:var(--green-dim);color:var(--green)}
+.viol-item__body{flex:1}
+.viol-item__type{font-weight:600;color:var(--text-primary)}
+.viol-item__desc{color:var(--text-secondary);margin-top:2px}
+.viol-item__meta{font-family:var(--mono);font-size:.65rem;color:var(--text-muted);margin-top:4px}
+.empty-state{color:var(--text-muted);font-size:.8rem;text-align:center;padding:30px 0}
+/* ── Controls ────────────────────────────────────────────────────── */
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:10px 20px;border:none;border-radius:var(--radius-sm);
+  font-family:var(--font);font-size:.78rem;font-weight:600;
+  cursor:pointer;transition:all .2s;position:relative;overflow:hidden;
+}
+.btn::after{
+  content:'';position:absolute;inset:0;background:rgba(255,255,255,.06);
+  opacity:0;transition:opacity .2s;
+}
+.btn:hover::after{opacity:1}
+.btn:active{transform:scale(.97)}
+.btn--start{background:linear-gradient(135deg,#059669,#10b981);color:#fff}
+.btn--stop{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff}
+.btn--reset{background:var(--bg-card-alt);color:var(--text-primary);border:1px solid var(--border)}
+.btn--spike{background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff}
+.btn--violation{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff}
+.btn--audit{background:linear-gradient(135deg,var(--accent),#0ea5e9);color:#fff;font-weight:700;font-size:.84rem;padding:12px 28px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.3)}
+.btn--view-cfoe{background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-weight:700;font-size:.76rem;padding:8px 18px;margin-top:12px;width:100%;justify-content:center}
+/* ── Audit result panel ──────────────────────────────────────────── */
+.audit-panel{
+  background:linear-gradient(135deg,var(--bg-card) 0%,#0f1d32 100%);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px 24px;box-shadow:var(--shadow);
+}
+.audit-panel__empty{color:var(--text-muted);font-size:.82rem;text-align:center;padding:20px 0}
+.audit-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.82rem}
+.audit-row:last-child{border-bottom:none}
+.audit-row__label{color:var(--text-secondary);font-weight:500}
+.audit-row__value{font-weight:700;font-family:var(--mono);text-align:right}
+.audit-row__value a{color:var(--accent);text-decoration:none;word-break:break-all}
+.audit-row__value a:hover{text-decoration:underline}
+.classification-badge{
+  padding:3px 10px;border-radius:6px;font-size:.7rem;font-weight:700;text-transform:uppercase;
+}
+.classification-badge--critical{background:var(--red-dim);color:var(--red)}
+.classification-badge--moderate{background:var(--yellow-dim);color:var(--yellow)}
+.classification-badge--low{background:var(--green-dim);color:var(--green)}
+/* ── Connection status bar ───────────────────────────────────────── */
+.conn-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  padding:6px 24px;font-size:.7rem;font-weight:600;text-align:center;
+  transition:all .3s;
+}
+.conn-bar--connected{background:rgba(34,197,94,.12);color:var(--green)}
+.conn-bar--disconnected{background:rgba(239,68,68,.18);color:var(--red);animation:pulse-badge 1.5s infinite}
+/* ── Utility ─────────────────────────────────────────────────────── */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══ Header ═══ -->
+  <header class="header" id="header">
+    <div class="header__logo">SF</div>
+    <div class="header__title">
+      <h1>SteelForge Industries Pvt. Ltd.</h1>
+      <p>Real-Time Carbon Emitter Simulator &middot; Pune, Maharashtra</p>
+    </div>
+    <span class="badge badge--shift" id="badge-shift"><span class="badge__dot"></span> Day Shift</span>
+    <span class="badge badge--stopped" id="badge-status"><span class="badge__dot"></span> Stopped</span>
+    <span class="badge badge--spike" id="badge-spike" style="display:none"><span class="badge__dot"></span> Spike Active</span>
+  </header>
+
+  <!-- ═══ Controls ═══ -->
+  <div class="controls" id="controls">
+    <button class="btn btn--start" id="btn-start" onclick="api('/simulation/start','POST')">▶ Start</button>
+    <button class="btn btn--stop" id="btn-stop" onclick="api('/simulation/stop','POST')">■ Stop</button>
+    <button class="btn btn--reset" id="btn-reset" onclick="api('/simulation/reset','POST')">↺ Reset</button>
+    <button class="btn btn--spike" id="btn-spike" onclick="api('/simulation/trigger-spike','POST')">⚡ Trigger Spike</button>
+    <button class="btn btn--violation" id="btn-violation" onclick="api('/simulation/trigger-violation','POST')">⚠ Trigger Violation</button>
+    <button class="btn btn--audit" id="btn-audit" onclick="runAudit()">🔍 Run Audit & Send to CfoE</button>
+  </div>
+
+  <!-- ═══ Metric cards ═══ -->
+  <div class="grid-4">
+    <div class="card metric">
+      <div class="metric__label">Total CO₂ Today</div>
+      <div class="metric__value" id="val-co2">0.00</div>
+      <div class="metric__sub">tonnes</div>
+    </div>
+    <div class="card metric">
+      <div class="metric__label">Est. Annual CO₂</div>
+      <div class="metric__value" id="val-annual-co2" style="color:var(--orange)">0</div>
+      <div class="metric__sub" id="val-daily-co2">0 t/day → 0 t/year</div>
+    </div>
+    <div class="card metric">
+      <div class="metric__label">Active Violations</div>
+      <div class="metric__value" id="val-active-viol" style="color:var(--purple)">0</div>
+      <div class="metric__sub">current window</div>
+    </div>
+    <div class="card metric">
+      <div class="metric__label">Cumulative Violations</div>
+      <div class="metric__value" id="val-cum-viol" style="color:var(--accent)">0</div>
+      <div class="metric__sub">since start</div>
+    </div>
+  </div>
+
+  <!-- ═══ Charts ═══ -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-title">CO₂ Emissions — Last 60 Ticks</div>
+      <div class="chart-wrap"><canvas id="chart-co2"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Process Breakdown — Current Daily Rate</div>
+      <div class="chart-wrap"><canvas id="chart-process"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ═══ Violations + Audit + History ═══ -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-title">Violations Feed</div>
+      <div class="violations-feed" id="violations-feed">
+        <div class="empty-state">No violations recorded yet.</div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- ═══ Connection bar ═══ -->
+<div class="conn-bar conn-bar--disconnected" id="conn-bar">⬤ Disconnected — attempting reconnect…</div>
+
+<script>
+/* ── Config ───────────────────────────────────────────────────────── */
+const SIM_BASE = 'http://localhost:8000';
+const WS_URL   = 'ws://localhost:8000/ws';
+
+/* ── State ────────────────────────────────────────────────────────── */
+let ws = null;
+let reconnectTimer = null;
+const co2History = [];          // last 60 total_co2_today values
+const tickLabels = [];          // matching labels
+
+/* ── Charts ───────────────────────────────────────────────────────── */
+const co2Ctx = document.getElementById('chart-co2').getContext('2d');
+const processCtx = document.getElementById('chart-process').getContext('2d');
+
+// Spike threshold line (Blast Furnace base * 1.4 as visual reference ≈ 1204 tCO2/day total with 1.4x)
+const SPIKE_THRESHOLD = 860 * 1.4;
+
+const co2Chart = new Chart(co2Ctx, {
+  type: 'line',
+  data: {
+    labels: tickLabels,
+    datasets: [
+      {
+        label: 'Total CO₂ (tonnes)',
+        data: co2History,
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56,189,248,.08)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+      },
+      {
+        label: 'Spike Threshold',
+        data: [],
+        borderColor: 'rgba(239,68,68,.6)',
+        borderDash: [6, 4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 300 },
+    plugins: {
+      legend: { display: true, labels: { color: '#94a3b8', font: { size: 11, family: 'Inter' } } }
+    },
+    scales: {
+      x: { display: false },
+      y: {
+        ticks: { color: '#64748b', font: { size: 10, family: 'JetBrains Mono' } },
+        grid: { color: 'rgba(255,255,255,.04)' },
+        beginAtZero: true
+      }
+    }
+  }
+});
+
+const PROCESS_NAMES = ['Blast Furnace', 'Rolling Mill', 'Power Generation', 'Coking Plant', 'Logistics'];
+const PROCESS_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#38bdf8'];
+const PROCESS_BG     = ['rgba(239,68,68,.7)', 'rgba(249,115,22,.7)', 'rgba(234,179,8,.7)', 'rgba(34,197,94,.7)', 'rgba(56,189,248,.7)'];
+
+const processChart = new Chart(processCtx, {
+  type: 'bar',
+  data: {
+    labels: PROCESS_NAMES,
+    datasets: [{
+      label: 'Daily Rate (tCO₂/day)',
+      data: [0, 0, 0, 0, 0],
+      backgroundColor: PROCESS_BG,
+      borderColor: PROCESS_COLORS,
+      borderWidth: 1.5,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 250 },
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        ticks: { color: '#64748b', font: { size: 10, family: 'JetBrains Mono' } },
+        grid: { color: 'rgba(255,255,255,.04)' },
+        beginAtZero: true
+      },
+      y: {
+        ticks: { color: '#94a3b8', font: { size: 11, family: 'Inter' } },
+        grid: { display: false }
+      }
+    }
+  }
+});
+
+/* ── DOM refs ─────────────────────────────────────────────────────── */
+const $co2       = document.getElementById('val-co2');
+const $annualCo2 = document.getElementById('val-annual-co2');
+const $dailyCo2  = document.getElementById('val-daily-co2');
+const $activeV   = document.getElementById('val-active-viol');
+const $cumV      = document.getElementById('val-cum-viol');
+const $status    = document.getElementById('badge-status');
+const $shift     = document.getElementById('badge-shift');
+const $spike     = document.getElementById('badge-spike');
+const $violFeed  = document.getElementById('violations-feed');
+const $auditE    = document.getElementById('audit-empty');
+const $auditC    = document.getElementById('audit-content');
+const $connBar   = document.getElementById('conn-bar');
+
+/* ── Helpers ──────────────────────────────────────────────────────── */
+function fmtNum(n) {
+  return Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+}
+
+function fmtTime(iso) {
+  try { return new Date(iso).toLocaleTimeString(); } catch { return iso; }
+}
+
+function fmtCurrency(n) {
+  return '₹' + Number(n).toLocaleString('en-IN');
+}
+
+/* ── API helper ───────────────────────────────────────────────────── */
+async function api(path, method = 'POST') {
+  try {
+    const res = await fetch(SIM_BASE + path, { method });
+    return await res.json();
+  } catch (e) {
+    console.error('API error:', e);
+  }
+}
+
+async function runAudit() {
+  const btn = document.getElementById('btn-audit');
+  btn.disabled = true;
+  btn.textContent = '⏳ Sending to CfoE…';
+  try {
+    const result = await api('/audit/run', 'POST');
+    // If audit succeeded (has audit_id), auto-open CfoE dashboard
+    if (result && result.audit_id) {
+      window.open('http://localhost:8001', '_blank');
+    }
+  } catch (e) { console.error(e); }
+  btn.disabled = false;
+  btn.innerHTML = '🔍 Run Audit & Send to CfoE';
+}
+
+/* ── Tick handler ─────────────────────────────────────────────────── */
+function handleTick(d) {
+  // Metrics
+  $co2.textContent = d.total_co2_today.toFixed(2);
+  // Annual CO₂ card
+  const annual = d.estimated_annual_co2 || 0;
+  const daily  = d.current_daily_co2 || 0;
+  $annualCo2.textContent = fmtNum(annual);
+  $dailyCo2.textContent  = fmtNum(daily) + ' t/day → ' + fmtNum(annual) + ' t/year';
+  // Color: green < 200k, yellow < 300k, orange < 400k, red ≥ 400k
+  $annualCo2.style.color = annual < 200000 ? 'var(--green)' : annual < 300000 ? 'var(--yellow)' : annual < 400000 ? 'var(--orange)' : 'var(--red)';
+  $activeV.textContent = d.active_violation_count;
+  $cumV.textContent = d.cumulative_violations;
+
+  // Badges
+  if (d.running) {
+    $status.className = 'badge badge--live';
+    $status.innerHTML = '<span class="badge__dot"></span> Live';
+  } else {
+    $status.className = 'badge badge--stopped';
+    $status.innerHTML = '<span class="badge__dot"></span> Stopped';
+  }
+  $shift.innerHTML = '<span class="badge__dot"></span> ' + d.shift + ' Shift';
+  $spike.style.display = d.spike_active ? 'inline-flex' : 'none';
+  if (d.spike_active) {
+    $spike.innerHTML = '<span class="badge__dot"></span> Spike ' + d.spike_multiplier + 'x (' + d.spike_remaining + ')';
+  }
+
+  // CO₂ history chart
+  co2History.push(d.total_co2_today);
+  tickLabels.push(d.tick);
+  if (co2History.length > 60) { co2History.shift(); tickLabels.shift(); }
+  // Update spike threshold line
+  co2Chart.data.datasets[1].data = new Array(co2History.length).fill(SPIKE_THRESHOLD);
+  co2Chart.update();
+
+  // Process bar chart
+  const procVals = PROCESS_NAMES.map(n => d.process_emissions[n] || 0);
+  processChart.data.datasets[0].data = procVals;
+  processChart.update();
+
+  // Violations feed
+  renderViolations(d.active_violations);
+}
+
+function renderViolations(violations) {
+  if (!violations || violations.length === 0) {
+    $violFeed.innerHTML = '<div class="empty-state">No violations recorded yet.</div>';
+    return;
+  }
+  // Show latest first
+  const sorted = [...violations].reverse();
+  $violFeed.innerHTML = sorted.map(v => `
+    <div class="viol-item">
+      <span class="viol-item__severity viol-item__severity--${v.severity}">${v.severity}</span>
+      <div class="viol-item__body">
+        <div class="viol-item__type">${v.type}</div>
+        <div class="viol-item__desc">${v.description}</div>
+        <div class="viol-item__meta">Fine: ${fmtCurrency(v.fine)} &middot; ${fmtTime(v.timestamp)} &middot; ${v.id}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ── Audit result handler ─────────────────────────────────────────── */
+function handleAuditResult(data) {
+  const r = data.result || data;
+  $auditE.style.display = 'none';
+  $auditC.style.display = 'block';
+
+  const classBadge = (r.classification || '').includes('Critical')
+    ? 'classification-badge--critical'
+    : (r.classification || '').includes('Moderate')
+      ? 'classification-badge--moderate'
+      : 'classification-badge--low';
+
+  let txRow = '';
+  const blockchain = r.blockchain || {};
+  const txId = blockchain.score_tx || '';
+  if (txId && txId !== 'FALLBACK' && txId !== 'LOCAL') {
+    txRow = `
+      <div class="audit-row">
+        <span class="audit-row__label">Algorand TX</span>
+        <span class="audit-row__value">
+          <a href="https://testnet.explorer.perawallet.app/tx/${txId}" target="_blank" rel="noopener">${txId.substring(0, 20)}…</a>
+        </span>
+      </div>`;
+  }
+
+  $auditC.innerHTML = `
+    <div class="audit-row">
+      <span class="audit-row__label">Audit ID</span>
+      <span class="audit-row__value">${r.audit_id || '—'}</span>
+    </div>
+    <div class="audit-row">
+      <span class="audit-row__label">Timestamp</span>
+      <span class="audit-row__value">${fmtTime(r.timestamp)}</span>
+    </div>
+    <div class="audit-row">
+      <span class="audit-row__label">ESG Score</span>
+      <span class="audit-row__value">${(r.risk_score ?? 0).toFixed(2)}</span>
+    </div>
+    <div class="audit-row">
+      <span class="audit-row__label">Classification</span>
+      <span class="audit-row__value"><span class="classification-badge ${classBadge}">${r.classification || '—'}</span></span>
+    </div>
+    <div class="audit-row">
+      <span class="audit-row__label">Policy Decision</span>
+      <span class="audit-row__value">${r.policy_decision || '—'}</span>
+    </div>
+    <div class="audit-row">
+      <span class="audit-row__label">HITL Required</span>
+      <span class="audit-row__value">${r.human_approval_required ? '🚨 YES' : '✅ No'}</span>
+    </div>
+    <div class="audit-row">
+      <span class="audit-row__label">Status</span>
+      <span class="audit-row__value">${r.status || '—'}</span>
+    </div>
+    ${txRow}
+    <div class="audit-row">
+      <span class="audit-row__label">Emissions Reported</span>
+      <span class="audit-row__value">${(r.emissions ?? 0).toFixed(2)} t</span>
+    </div>
+    <div class="audit-row">
+      <span class="audit-row__label">Violations Reported</span>
+      <span class="audit-row__value">${r.violations ?? 0}</span>
+    </div>
+    <div style="margin-top:14px">
+      <a href="http://localhost:8001" target="_blank" class="btn btn--view-cfoe" style="text-decoration:none;display:inline-flex">↗ View in CfoE Dashboard</a>
+    </div>
+  `;
+}
+
+/* ── WebSocket ────────────────────────────────────────────────────── */
+function connect() {
+  if (ws && ws.readyState <= 1) return;
+
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    $connBar.className = 'conn-bar conn-bar--connected';
+    $connBar.textContent = '⬤ Connected to simulator';
+    clearTimeout(reconnectTimer);
+  };
+
+  ws.onmessage = (e) => {
+    let data;
+    try { data = JSON.parse(e.data); } catch { return; }
+
+    if (data.type === 'tick') {
+      handleTick(data);
+    } else if (data.type === 'audit_result') {
+      handleAuditResult(data);
+    } else if (data.type === 'audit_error') {
+      $auditE.style.display = 'none';
+      $auditC.style.display = 'block';
+      $auditC.innerHTML = `
+        <div style="color:var(--red);padding:16px;text-align:center;">
+          <strong>Audit Error</strong><br>
+          <span style="font-size:.78rem;color:var(--text-secondary)">${data.error}</span>
+        </div>`;
+    }
+  };
+
+  ws.onclose = () => {
+    $connBar.className = 'conn-bar conn-bar--disconnected';
+    $connBar.textContent = '⬤ Disconnected — attempting reconnect…';
+    scheduleReconnect();
+  };
+
+  ws.onerror = () => {
+    ws.close();
+  };
+}
+
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connect, 2500);
+}
+
+/* ── Boot ─────────────────────────────────────────────────────────── */
+connect();
+loadAuditHistory();
+
+/* ── Audit history loader ─────────────────────────────────────────── */
+async function loadAuditHistory() {
+  const $history = document.getElementById('audit-history');
+  try {
+    const res = await fetch('http://localhost:8001/api/audits?limit=10');
+    const data = await res.json();
+    const audits = data.items || [];
+    
+    if (audits.length === 0) {
+      $history.innerHTML = '<div class="empty-state">No audits found in CfoE system yet.</div>';
+      return;
+    }
+    
+    $history.innerHTML = audits.map(audit => {
+      const classBadge = (audit.classification || '').includes('Critical')
+        ? 'classification-badge--critical'
+        : (audit.classification || '').includes('Moderate')
+          ? 'classification-badge--moderate'
+          : 'classification-badge--low';
+      
+      const time = new Date(audit.timestamp).toLocaleString();
+      const onChain = audit.blockchain?.on_chain ? '⛓️ On-Chain' : '💾 Local';
+      
+      return `
+        <div class="audit-history-item">
+          <div class="audit-history-item__badge">
+            <span class="classification-badge ${classBadge}">${audit.classification || '—'}</span>
+          </div>
+          <div class="audit-history-item__content">
+            <div class="audit-history-item__header">
+              <span class="audit-history-item__supplier">${audit.supplier_name}</span>
+              <span class="audit-history-item__time">${time}</span>
+            </div>
+            <div class="audit-history-item__meta">
+              <span>🎯 Score: ${audit.risk_score.toFixed(2)}</span>
+              <span>🏭 ${fmtNum(audit.emissions)} t CO₂</span>
+              <span>⚠️ ${audit.violations} violations</span>
+              <span>${onChain}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+  } catch (e) {
+    $history.innerHTML = '<div class="empty-state" style="color:var(--red)">Failed to load audit history from CfoE</div>';
+    console.error('Failed to load audit history:', e);
+  }
+}
+
+</script>
+</body>
+</html>
