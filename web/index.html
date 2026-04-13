@@ -246,6 +246,19 @@
                 <h2>🔧 Token Management</h2>
                 <div class="token-actions-grid">
                     <div class="token-action-card">
+                        <h3>✅ Opt-In to Receive Tokens</h3>
+                        <p>Recipients must opt-in before receiving tokens (one-time setup)</p>
+                        <form id="optin-form">
+                            <label>
+                                Asset ID
+                                <input type="number" id="optin-asset-id" placeholder="758777881" required />
+                            </label>
+                            <button type="submit" class="token-btn">Opt-In Now</button>
+                        </form>
+                        <p style="margin-top: 8px; font-size: 0.85rem; color: #888;">💡 Tip: Get the Asset ID from the Token Overview above</p>
+                    </div>
+
+                    <div class="token-action-card">
                         <h3>🏭 Create Token</h3>
                         <p>Initialize the carbon credit token system</p>
                         <form id="create-token-form">
@@ -340,6 +353,25 @@
                             </label>
                             <button type="submit" class="token-btn">Create NFT</button>
                         </form>
+                    </div>
+
+                    <div class="token-action-card">
+                        <h3>🔍 Check Balance</h3>
+                        <p>Look up token balance for any Algorand address</p>
+                        <form id="check-balance-form">
+                            <label>
+                                Algorand Address
+                                <input type="text" id="check-balance-address" placeholder="Paste any Algorand address" required />
+                            </label>
+                            <button type="submit" class="token-btn">Check Balance</button>
+                        </form>
+                        <div id="check-balance-result" style="margin-top: 12px; display: none;">
+                            <div style="background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); border-radius: 8px; padding: 12px;">
+                                <p style="margin: 0 0 4px 0; font-size: 0.85rem; color: #888;">Token Balance</p>
+                                <p style="margin: 0; font-size: 1.4rem; font-weight: 700;" id="check-balance-tokens">0 CCT</p>
+                                <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #aaa;" id="check-balance-credits">0 tons CO2eq</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -1113,7 +1113,7 @@ class NFTCreateRequest(BaseModel):
 
 @app.post("/api/tokens/optin")
 def optin_to_token(payload: TokenOptInRequest) -> Dict[str, Any]:
-    """Opt-in to receive carbon credit tokens."""
+    """Opt-in the server wallet to receive carbon credit tokens."""
     tm = get_token_manager()
     bc = get_blockchain_client()
     
@@ -1121,33 +1121,18 @@ def optin_to_token(payload: TokenOptInRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Wallet not connected")
     
     try:
-        from algosdk.transaction import AssetTransferTxn, wait_for_confirmation
-        import os
+        tx_id = tm.optin_to_asset(payload.asset_id)
         
-        params = bc.algod_client.suggested_params()
-        
-        # Opt-in transaction: 0 amount transfer to self
-        txn = AssetTransferTxn(
-            sender=bc.address,
-            sp=params,
-            receiver=bc.address,
-            amt=0,
-            index=payload.asset_id,
-        )
-        
-        env_key = os.getenv("ALGORAND_PRIVATE_KEY")
-        if not env_key:
-            raise HTTPException(status_code=400, detail="ALGORAND_PRIVATE_KEY required")
-        
-        signed_txn = txn.sign(env_key)
-        tx_id = bc.algod_client.send_transaction(signed_txn)
-        wait_for_confirmation(bc.algod_client, tx_id, 4)
-        
-        return {
-            "status": "success",
-            "tx_id": tx_id,
-            "message": f"Successfully opted-in to asset {payload.asset_id}"
-        }
+        if tx_id:
+            return {
+                "status": "success",
+                "tx_id": tx_id,
+                "message": f"Successfully opted-in to asset {payload.asset_id}"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Opt-in transaction failed")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Opt-in failed: {str(e)}")
 
@@ -1176,6 +1161,13 @@ def create_carbon_token(payload: TokenCreateRequest) -> Dict[str, Any]:
 def issue_carbon_credits(payload: CreditIssueRequest) -> Dict[str, Any]:
     """Issue carbon credits to a recipient."""
     tm = get_token_manager()
+    
+    if not tm.carbon_credit_asset_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No carbon credit token exists yet. Create one first via POST /api/tokens/create"
+        )
+    
     tx_id = tm.issue_credits(
         recipient_address=payload.recipient_address,
         carbon_credits=payload.amount,
@@ -1219,6 +1211,13 @@ def retire_carbon_credits(payload: CreditRetireRequest) -> Dict[str, Any]:
 def transfer_carbon_credits(payload: CreditTransferRequest) -> Dict[str, Any]:
     """Transfer carbon credits to another address."""
     tm = get_token_manager()
+
+    if not tm.carbon_credit_asset_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No carbon credit token exists yet. Create one first via POST /api/tokens/create"
+        )
+
     tx_id = tm.transfer_credits(
         recipient_address=payload.recipient_address,
         carbon_credits=payload.amount,

@@ -1279,6 +1279,15 @@ ${item.report_text || 'No report generated.'}</div>
     }
     
     // Token management event listeners
+    const optinForm = document.getElementById('optin-form');
+    if (optinForm) {
+      optinForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const assetId = parseInt(document.getElementById('optin-asset-id').value);
+        await handleOptIn(assetId);
+      });
+    }
+    
     const createTokenForm = document.getElementById('create-token-form');
     if (createTokenForm) {
       createTokenForm.addEventListener('submit', handleCreateToken);
@@ -1315,6 +1324,29 @@ ${item.report_text || 'No report generated.'}</div>
     document.querySelectorAll('.token-history-tab').forEach(btn => {
       btn.addEventListener('click', (e) => switchTokenHistoryTab(e.target.dataset.historyTab));
     });
+
+    // Check balance form
+    const checkBalanceForm = document.getElementById('check-balance-form');
+    if (checkBalanceForm) {
+      checkBalanceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const address = document.getElementById('check-balance-address').value.trim();
+        if (!address) return;
+        
+        try {
+          const res = await fetch(`/api/tokens/balance/${address}`);
+          if (!res.ok) throw new Error('Failed to fetch balance');
+          const data = await res.json();
+          const bal = data.balance || {};
+          
+          document.getElementById('check-balance-tokens').textContent = `${(bal.tokens || 0).toFixed(1)} CCT`;
+          document.getElementById('check-balance-credits').textContent = `${(bal.carbon_credits || 0).toFixed(0)} tons CO2eq`;
+          document.getElementById('check-balance-result').style.display = 'block';
+        } catch (err) {
+          setStatus(`Balance check failed: ${err.message}`, true);
+        }
+      });
+    }
   };
 
   // ============================================
@@ -1335,16 +1367,16 @@ ${item.report_text || 'No report generated.'}</div>
         // Show opt-in button if token exists and wallet connected
         const optinBtn = document.getElementById('optin-token-btn');
         if (optinBtn && tokenId && state.walletStatus.connected) {
-          // Check if user needs to opt-in (balance is null means not opted in)
+          // Check if user needs to opt-in
           const balanceRes = await fetch(`/api/tokens/balance/${state.walletStatus.address}`);
           if (balanceRes.ok) {
             const balanceData = await balanceRes.json();
-            // Show button only if user hasn't opted in yet (balance is null)
-            if (balanceData.balance === null) {
+            // Show button only if user hasn't opted in yet
+            if (!balanceData.balance.opted_in) {
               optinBtn.style.display = 'block';
               optinBtn.onclick = () => handleOptIn(tokenId);
             } else {
-              // User already opted in or is creator, hide button
+              // User already opted in, hide button
               optinBtn.style.display = 'none';
             }
           }

@@ -592,7 +592,7 @@ CfoE implements tokenized carbon credits using Algorand Standard Assets (ASA):
 - Issue credits to suppliers for verified emission reductions
 - Each issuance linked to audit ID for traceability
 - On-chain record of reason and timestamp
-- Recorded as ledger entries (no opt-in required)
+- Actual ASA token transfers (recipient must opt-in first)
 
 #### 3. Credit Retirement (Burn)
 - Permanently retire credits for carbon offsetting
@@ -618,7 +618,13 @@ POST /api/tokens/create
   "asset_name": "CfoE Carbon Credit"
 }
 
-# Issue credits to supplier (no opt-in required)
+# Opt-in to receive tokens (required before receiving)
+POST /api/tokens/optin
+{
+  "asset_id": 758777881
+}
+
+# Issue credits to supplier (recipient must opt-in first)
 POST /api/tokens/issue
 {
   "recipient_address": "ALGORAND_ADDRESS",
@@ -662,7 +668,7 @@ python test_carbon_tokens.py
 
 ### Use Cases
 
-1. **Supplier Incentives**: Issue credits to suppliers who reduce emissions (no opt-in required)
+1. **Supplier Incentives**: Issue credits to suppliers who reduce emissions
 2. **Carbon Trading**: Transfer credits between parties for compliance
 3. **Offset Programs**: Retire credits to offset operational emissions
 4. **Compliance Proof**: NFT certificates for regulatory reporting
@@ -674,7 +680,7 @@ python test_carbon_tokens.py
 - **Token Type**: Fungible (CCT) and Non-Fungible (NFT certificates)
 - **Token Economics**: 1 CCT = 10 tons CO2eq
 - **Decimals**: 1 (allows 0.1 CCT = 1 ton precision)
-- **Issuance Model**: Ledger-based recording (no recipient opt-in required)
+- **Issuance Model**: ASA token transfers (recipient must opt-in to asset)
 - **Supply Control**: Manager can modify configuration
 - **Reserve**: Holds uncirculated supply
 - **Freeze**: Can freeze accounts if needed

@@ -273,7 +273,7 @@ class CfoEBlockchainClient:
             print(f"               Supplier:  {supplier_name}")
             print(f"               Score:     {risk_score:.2f} ({classification})")
             print(f"               Data Hash: {data_hash[:16]}...")
-            print(f"               TX:        {tx_id[:20]}...")
+            print(f"               TX:        {tx_id}")
         else:
             local_id = f"SCORE-{len(self.score_anchors):04d}"
             record["local_id"] = local_id
@@ -364,7 +364,7 @@ class CfoEBlockchainClient:
             print(f"               Score:    {risk_score:.2f}")
             if self.address:
                 print(f"               Auditor:  {self.address[:16]}...")
-            print(f"               TX:       {tx_id[:20]}...")
+            print(f"               TX:       {tx_id}")
             print(f"               Crypto Proof: TX signed by auditor wallet")
         else:
             local_id = f"HITL-{len(self.hitl_decisions):04d}"
@@ -455,11 +455,11 @@ class CfoEBlockchainClient:
             print(f"               SHA-256:      {report_hash[:24]}...")
             print(f"               Verify Code:  {verification_code}")
             print(f"               Report Size:  {len(report_text)} chars")
-            print(f"               TX:           {tx_id[:20]}...")
+            print(f"               TX:           {tx_id}")
             print(f"               Chain of Custody:")
             print(f"                 1. Score:  {(score_anchor_tx or 'N/A')[:20]}...")
             print(f"                 2. HITL:   {(hitl_decision_tx or 'N/A')[:20]}...")
-            print(f"                 3. Report: {tx_id[:20]}...")
+            print(f"                 3. Report: {tx_id}")
         else:
             local_id = f"REPORT-{len(self.report_hashes):04d}"
             record["local_id"] = local_id
@@ -572,7 +572,7 @@ class CfoEBlockchainClient:
             print(f"               Credits:   +{credits_earned + streak_bonus + improvement_bonus}")
             print(f"               Total:     {total_credits}")
             print(f"               Badges:    {', '.join(badges_earned) if badges_earned else 'None'}")
-            print(f"               TX:        {tx_id[:20]}...")
+            print(f"               TX:        {tx_id}")
         else:
             local_id = f"CREDITS-{int(datetime.now().timestamp())}"
             record["local_id"] = local_id
