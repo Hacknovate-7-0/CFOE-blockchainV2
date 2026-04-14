@@ -380,6 +380,7 @@
                 <h2>📜 Transaction History</h2>
                 <div class="token-history-tabs">
                     <button class="token-history-tab active" data-history-tab="issued">Issued</button>
+                    <button class="token-history-tab" data-history-tab="received">Received</button>
                     <button class="token-history-tab" data-history-tab="retired">Retired</button>
                     <button class="token-history-tab" data-history-tab="nfts">NFTs</button>
                 </div>
@@ -399,6 +400,26 @@
                             </thead>
                             <tbody id="token-issued-body">
                                 <tr><td colspan="7" class="lb-empty">No credits issued yet</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="token-history-received" class="token-history-content">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>From</th>
+                                    <th>Credits (tons)</th>
+                                    <th>Tokens (CCT)</th>
+                                    <th>Reason</th>
+                                    <th>Audit ID</th>
+                                    <th>TX ID</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="token-received-body">
+                                <tr><td colspan="7" class="lb-empty">No credits received yet</td></tr>
                             </tbody>
                         </table>
                     </div>

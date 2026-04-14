@@ -78,10 +78,12 @@ class CfoEBlockchainClient:
             if env_key:
                 try:
                     # Derive address from private key
-                    self.address = account.address_from_private_key(env_key)
+                    derived_address = account.address_from_private_key(env_key)
+                    self.address = derived_address
                     self.private_key = env_key
                     self.wallet_connected = True
-                    print(f"  [Blockchain] Wallet auto-connected from .env: {self.address[:16]}...")
+                    print(f"  [Blockchain] Wallet auto-connected from .env")
+                    print(f"  [Blockchain] Address: {self.address}")
                 except Exception as e:
                     print(f"  [Blockchain] WARNING: Invalid ALGORAND_PRIVATE_KEY in .env: {e}")
             

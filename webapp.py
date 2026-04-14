@@ -933,9 +933,22 @@ def blockchain_status() -> Dict[str, Any]:
     bc = get_blockchain_client()
     tm = get_token_manager()
     
-    # Force refresh connection status
+    # Force refresh connection to ensure we have latest wallet info
     if not bc.connected:
         bc.connect()
+    
+    # Re-check wallet connection from .env if not already connected
+    if not bc.wallet_connected:
+        import os
+        from algosdk import account
+        env_key = os.getenv("ALGORAND_PRIVATE_KEY")
+        if env_key:
+            try:
+                bc.address = account.address_from_private_key(env_key)
+                bc.private_key = env_key
+                bc.wallet_connected = True
+            except Exception:
+                pass
     
     balance_info = bc.get_balance()
     history = bc.get_audit_history()
