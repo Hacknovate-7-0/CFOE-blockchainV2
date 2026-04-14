@@ -1427,6 +1427,28 @@ ${item.report_text || 'No report generated.'}</div>
       `).join('');
     }
     
+    // Render received credits (filter by current wallet address)
+    const receivedBody = document.getElementById('token-received-body');
+    const receivedCredits = state.tokenData.issued.filter(item => 
+      state.walletStatus.address && item.recipient === state.walletStatus.address
+    );
+    
+    if (receivedCredits.length === 0) {
+      receivedBody.innerHTML = '<tr><td colspan="7" class="lb-empty">No credits received yet</td></tr>';
+    } else {
+      receivedBody.innerHTML = receivedCredits.map(item => `
+        <tr>
+          <td>${truncateAddress(item.issuer_address || 'System')}</td>
+          <td>${(item.carbon_credits || 0).toFixed(1)}</td>
+          <td>${(item.tokens_issued || 0).toFixed(1)}</td>
+          <td>${item.reason || 'N/A'}</td>
+          <td>${item.audit_id || 'N/A'}</td>
+          <td><code>${(item.tx_id || 'N/A').substring(0, 16)}...</code></td>
+          <td>${formatDate(item.timestamp)}</td>
+        </tr>
+      `).join('');
+    }
+    
     // Render retired credits
     const retiredBody = document.getElementById('token-retired-body');
     if (state.tokenData.retired.length === 0) {

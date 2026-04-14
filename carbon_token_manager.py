@@ -312,6 +312,7 @@ class CarbonCreditTokenManager:
         if tx_id:
             record = {
                 "recipient": recipient_address,
+                "issuer_address": self.bc.address,
                 "carbon_credits": carbon_credits,
                 "tokens_issued": tokens,
                 "reason": reason,
