@@ -62,6 +62,7 @@
             <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
             <button class="tab-btn" data-tab="leaderboard">Leaderboard</button>
             <button class="tab-btn" data-tab="tokens">Carbon Tokens</button>
+            <button class="tab-btn" data-tab="revenue">💰 Revenue</button>
             <a href="/simulator" class="simulator-link" title="Open Real-Time Simulator">
                 <button class="tab-btn simulator-btn" type="button">🔴 Live Simulator</button>
             </a>
@@ -537,6 +538,107 @@
                             <p>ESG improved by &gt;0.15 — +30 bonus</p>
                         </div>
                     </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-revenue" class="tab-content">
+            <section class="panel revenue-overview-panel">
+                <div class="revenue-header">
+                    <h2>💰 Agentic Commerce Revenue</h2>
+                    <span class="revenue-subtitle">X402 micropayment ledger — auto-refreshes every 30 s</span>
+                </div>
+
+                <div class="revenue-kpi-grid">
+                    <div class="revenue-kpi-card">
+                        <span class="revenue-kpi-icon">⚡</span>
+                        <div class="revenue-kpi-label">Total ALGO Earned</div>
+                        <div class="revenue-kpi-value" id="rev-total-earned">0.000000</div>
+                        <div class="revenue-kpi-sub">across all agents</div>
+                    </div>
+                    <div class="revenue-kpi-card">
+                        <span class="revenue-kpi-icon">🔍</span>
+                        <div class="revenue-kpi-label">Audits Paid</div>
+                        <div class="revenue-kpi-value" id="rev-audits-paid">0</div>
+                        <div class="revenue-kpi-sub">0.05 ALGO per audit</div>
+                    </div>
+                    <div class="revenue-kpi-card">
+                        <span class="revenue-kpi-icon">📄</span>
+                        <div class="revenue-kpi-label">Reports Sold</div>
+                        <div class="revenue-kpi-value" id="rev-reports-sold">0</div>
+                        <div class="revenue-kpi-sub">0.02 ALGO per report</div>
+                    </div>
+                    <div class="revenue-kpi-card">
+                        <span class="revenue-kpi-icon">📊</span>
+                        <div class="revenue-kpi-label">Total Payments</div>
+                        <div class="revenue-kpi-value" id="rev-payment-count">0</div>
+                        <div class="revenue-kpi-sub">in + out</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel revenue-wallets-panel">
+                <h2>🧳 Agent Wallet Balances</h2>
+                <p class="panel-sub">Real-time ALGO balances for each autonomous agent wallet.</p>
+                <div class="revenue-wallets-grid" id="rev-wallets-grid">
+                    <div class="revenue-wallet-card skeleton">
+                        <div class="rwc-name">Monitor Agent</div>
+                        <div class="rwc-address" id="rwc-monitor-addr">Loading...</div>
+                        <div class="rwc-balance" id="rwc-monitor-bal">—</div>
+                    </div>
+                    <div class="revenue-wallet-card skeleton">
+                        <div class="rwc-name">Reporting Agent</div>
+                        <div class="rwc-address" id="rwc-reporting-addr">Loading...</div>
+                        <div class="rwc-balance" id="rwc-reporting-bal">—</div>
+                    </div>
+                    <div class="revenue-wallet-card skeleton">
+                        <div class="rwc-name">Policy Agent</div>
+                        <div class="rwc-address" id="rwc-policy-addr">Loading...</div>
+                        <div class="rwc-balance" id="rwc-policy-bal">—</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel revenue-earnings-panel">
+                <h2>💸 Earnings by Agent</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Agent</th>
+                                <th>ALGO Earned</th>
+                                <th>Share</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rev-earnings-body">
+                            <tr><td colspan="3" class="lb-empty">No earnings yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel revenue-tx-panel">
+                <dev class="revenue-tx-head">
+                    <h2>📞 Last 10 X402 Payments</h2>
+                    <span class="revenue-subtitle">TX IDs link to Algonode Testnet explorer</span>
+                </dev>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Agent</th>
+                                <th>Direction</th>
+                                <th>Service</th>
+                                <th>Amount (ALGO)</th>
+                                <th>Status</th>
+                                <th>TX ID</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rev-tx-body">
+                            <tr><td colspan="7" class="lb-empty">No X402 payments yet</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
         </div>

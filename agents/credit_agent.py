@@ -257,6 +257,37 @@ def calculate_carbon_credits(audit_result: dict) -> dict:
         "esg_score": esg_score,
         "timestamp": now_iso,
     }
+
+    # ── Part 2: Mint CCC ASA tokens on-chain ─────────────────────────────
+    # Only mint whole positive amounts; scoring logic above is NOT touched.
+    # Use SDK directly — no LLM involved.
+    if credits_earned > 0:
+        try:
+            from onchain_ops import mint_or_queue
+            from blockchain_client import get_blockchain_client
+
+            bc             = get_blockchain_client()
+            wallet_address = bc.address if bc.wallet_connected else None
+            audit_id       = audit_result.get("audit_id", f"AUD-{supplier_id}")
+
+            mint_result = mint_or_queue(
+                supplier_id=supplier_id,
+                supplier_name=supplier_name,
+                amount=credits_earned,
+                audit_id=audit_id,
+                esg_score=esg_score,
+                wallet_address=wallet_address,
+            )
+            result["ccc_mint"] = mint_result
+        except Exception as _mint_exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"[CreditAgent] CCC mint skipped: {_mint_exc}"
+            )
+            result["ccc_mint"] = {"status": "skipped", "reason": str(_mint_exc)}
+    else:
+        result["ccc_mint"] = {"status": "skipped", "reason": "no credits earned"}
+
     return result
 
 

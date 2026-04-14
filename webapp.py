@@ -6,6 +6,7 @@ import asyncio
 from queue import Queue
 import csv
 import json
+import os
 import threading
 from textwrap import wrap
 from datetime import datetime, timezone
@@ -15,8 +16,8 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from docx import Document
@@ -38,6 +39,13 @@ try:
 except ImportError:  # pragma: no cover
     Groq = None
 
+# ── X402 Payment constants ─────────────────────────────────────────────────
+# Shared secret that lets the internal simulator bypass the payment gate.
+X402_INTERNAL_SECRET = os.getenv("X402_INTERNAL_SECRET", "cfoe-internal-bypass-secret")
+# Required ALGO per external audit call
+AUDIT_PAYMENT_ALGO = 0.05
+# Required ALGO per report access
+REPORT_PAYMENT_ALGO = 0.02
 
 BASE_DIR = Path(__file__).resolve().parent
 WEB_DIR = BASE_DIR / "web"
@@ -189,6 +197,43 @@ def ensure_storage() -> None:
             '{"score_anchors": [], "hitl_decisions": [], "report_hashes": []}',
             encoding="utf-8",
         )
+
+    # ── New data files for ASA economy (Parts 2–5) ───────────────────────
+    # pending_mints.json — CCC tokens queued for walletless suppliers
+    pending_mints_path = DATA_DIR / "pending_mints.json"
+    if not pending_mints_path.exists():
+        pending_mints_path.write_text("[]", encoding="utf-8")
+
+    # compliance_bonds.json — active / historic compliance bonds
+    compliance_bonds_path = DATA_DIR / "compliance_bonds.json"
+    if not compliance_bonds_path.exists():
+        compliance_bonds_path.write_text("{}", encoding="utf-8")
+
+    # marketplace_listings.json — P2P credit listings
+    marketplace_path = DATA_DIR / "marketplace_listings.json"
+    if not marketplace_path.exists():
+        marketplace_path.write_text('{"listings": {}, "counter": 0}', encoding="utf-8")
+
+    # staking_positions.json — CCC staking positions
+    staking_path = DATA_DIR / "staking_positions.json"
+    if not staking_path.exists():
+        staking_path.write_text("{}", encoding="utf-8")
+
+    # ── X402 Agentic Commerce data files ──────────────────────────────────
+    # agent_wallets.json — agent wallet addresses (no private keys)
+    agent_wallets_path = DATA_DIR / "agent_wallets.json"
+    if not agent_wallets_path.exists():
+        agent_wallets_path.write_text("{}", encoding="utf-8")
+
+    # agent_payments.json — X402 payment ledger
+    agent_payments_path = DATA_DIR / "agent_payments.json"
+    if not agent_payments_path.exists():
+        agent_payments_path.write_text("[]", encoding="utf-8")
+
+    # encrypted_reports.json — encrypted audit report registry
+    encrypted_reports_path = DATA_DIR / "encrypted_reports.json"
+    if not encrypted_reports_path.exists():
+        encrypted_reports_path.write_text("{}", encoding="utf-8")
 
     if not OUTPUT_CSV_PATH.exists():
         with OUTPUT_CSV_PATH.open("w", encoding="utf-8", newline="") as csv_file:
@@ -744,7 +789,7 @@ _wallet_state: Dict[str, Any] = {"connected": False, "address": None}
 @app.on_event("startup")
 def startup_event() -> None:
     ensure_storage()
-    
+
     # Sync _wallet_state with .env auto-connected wallet
     # This ensures the frontend sees the correct state on fresh device setups
     bc = get_blockchain_client()
@@ -752,6 +797,17 @@ def startup_event() -> None:
         _wallet_state["connected"] = True
         _wallet_state["address"] = bc.address
         print(f"  [Startup] Auto-synced wallet state from .env: {bc.address[:16]}...")
+
+    # ── Part 1: Initialize agent wallets ──────────────────────────────────
+    try:
+        from agents.agent_wallets import initialize_agent_wallets
+        wallet_info = initialize_agent_wallets()
+        for agent, info in wallet_info.items():
+            addr = info.get("address", "N/A")
+            bal = info.get("balance_algo", 0.0)
+            print(f"  [AgentWallet] {agent}: {addr[:20]}... | {bal:.6f} ALGO")
+    except Exception as _wex:
+        print(f"  [AgentWallet] WARNING: Could not initialize agent wallets: {_wex}")
 
 
 @app.get("/")
@@ -766,18 +822,69 @@ def serve_simulator() -> FileResponse:
 
 
 @app.post("/api/audit", response_model=AuditResponse)
-async def create_audit(payload: AuditRequest) -> Dict[str, Any]:
+async def create_audit(
+    payload: AuditRequest,
+    request: Request,
+    x_payment: Optional[str] = Header(None, alias="X-Payment"),
+    x_internal_secret: Optional[str] = Header(None, alias="X-Internal-Secret"),
+) -> Dict[str, Any]:
+    """POST /api/audit — X402 payment gate (Part 3).
+
+    External callers must include a valid X-Payment header (0.05 ALGO).
+    Internal simulator calls bypass the gate using the X-Internal-Secret header.
+    """
     # Phase 2: Validate registry ID if provided
     if payload.registry_id and payload.registry_id.strip():
         validation = validate_registry_id(payload.registry_id)
         if not validation["valid"]:
             raise HTTPException(status_code=400, detail=validation["error"])
-    
+
+    # ── X402 Payment Gate (Part 3) ─────────────────────────────────────────
+    is_internal = x_internal_secret == X402_INTERNAL_SECRET
+    payment_info: Optional[Dict[str, Any]] = None
+
+    if not is_internal:
+        if not x_payment:
+            # Return 402 with payment instructions
+            bc = get_blockchain_client()
+            auditor_addr = bc.address or ""
+            try:
+                from agents.x402_payments import build_payment_required_body
+                body = build_payment_required_body(
+                    receiver_address=auditor_addr,
+                    amount_algo=AUDIT_PAYMENT_ALGO,
+                    description=f"CfoE ESG Audit — {AUDIT_PAYMENT_ALGO} ALGO per audit",
+                )
+            except Exception:
+                body = {
+                    "x402Version": 1,
+                    "error": "Payment required",
+                    "payTo": auditor_addr,
+                    "amount_algo": AUDIT_PAYMENT_ALGO,
+                }
+            return JSONResponse(status_code=402, content=body)
+
+        # Validate the provided payment header
+        try:
+            from agents.x402_payments import validate_audit_payment
+            bc = get_blockchain_client()
+            auditor_addr = bc.address or ""
+            valid, err_msg, payment_info = validate_audit_payment(
+                x_payment_header=x_payment,
+                auditor_address=auditor_addr,
+                required_amount_algo=AUDIT_PAYMENT_ALGO,
+            )
+        except Exception as pex:
+            valid, err_msg, payment_info = False, str(pex), None
+
+        if not valid:
+            raise HTTPException(status_code=402, detail=f"Invalid payment: {err_msg}")
+
     try:
         # Clear log queue before starting
         while not log_queue.empty():
             log_queue.get()
-        
+
         result = run_audit(payload)
         result["download_links"] = export_audit_files(result)
     except Exception as exc:
@@ -786,6 +893,23 @@ async def create_audit(payload: AuditRequest) -> Dict[str, Any]:
         print(f"\n[ERROR] Audit failed with exception:")
         print(error_trace)
         raise HTTPException(status_code=500, detail=f"Audit failed: {str(exc)}") from exc
+
+    # Attach payment info to history record (Part 3)
+    if payment_info:
+        result["x402_payment"] = payment_info
+        try:
+            from agents.x402_payments import record_payment
+            record_payment(
+                agent_name="auditor",
+                amount_algo=AUDIT_PAYMENT_ALGO,
+                service="audit",
+                tx_id=payment_info.get("tx_id"),
+                direction="incoming",
+                status="confirmed",
+                audit_id=result.get("audit_id"),
+            )
+        except Exception:
+            pass
 
     # If human approval required, save to pending queue instead of history
     if result.get("human_approval_required", False):
@@ -797,7 +921,7 @@ async def create_audit(payload: AuditRequest) -> Dict[str, Any]:
         history = load_history()
         history.insert(0, result)
         save_history(history[:500])
-    
+
     return result
 
 
@@ -1151,12 +1275,30 @@ def wallet_connect(payload: WalletConnectRequest) -> Dict[str, Any]:
     """Register a wallet address from the frontend."""
     _wallet_state["connected"] = True
     _wallet_state["address"] = payload.address
-    
+
     # Connect wallet to blockchain client
     bc = get_blockchain_client()
     bc.set_wallet_address(payload.address)
-    
-    return {"status": "ok", "address": payload.address}
+
+    # Part 2: Flush any pending CCC mints for this wallet.
+    # We match on address since we may not know the supplier_id at connect time.
+    # Try to resolve supplier_id from audit history.
+    flushed = []
+    try:
+        from onchain_ops import flush_pending_mints
+        history = load_history()
+        matched_ids = {
+            rec["supplier_name"].strip().lower().replace(" ", "_")
+            for rec in history
+            if rec.get("supplier_name")
+        }
+        for sid in matched_ids:
+            processed = flush_pending_mints(payload.address, sid)
+            flushed.extend(processed)
+    except Exception as _fe:
+        pass
+
+    return {"status": "ok", "address": payload.address, "pending_mints_flushed": len(flushed)}
 
 
 @app.post("/api/wallet/disconnect")
@@ -1420,6 +1562,457 @@ def get_token_summary() -> Dict[str, Any]:
         "retired_credits": tm.retired_credits,
         "audit_nfts": tm.audit_nfts,
     }
+
+
+# ── Marketplace endpoints (Part 4) ─────────────────────────────────────────
+
+class MarketplaceListRequest(BaseModel):
+    supplier_id: str = Field(min_length=1, max_length=120)
+    supplier_address: str = Field(min_length=58, max_length=58)
+    amount_ccc: int = Field(gt=0)
+    price_per_unit_micro_algo: int = Field(gt=0,
+        description="Price per CCC token in micro-ALGO (1 ALGO = 1_000_000 micro-ALGO)")
+
+
+class MarketplaceBuyRequest(BaseModel):
+    listing_id: int = Field(gt=0)
+    buyer_address: str = Field(min_length=58, max_length=58)
+    buyer_supplier_id: str = Field(min_length=1, max_length=120)
+
+
+@app.post("/api/marketplace/list")
+def marketplace_list(payload: MarketplaceListRequest) -> Dict[str, Any]:
+    """
+    Supplier lists CCC tokens for sale.
+    POST /api/marketplace/list
+    Body: {supplier_id, supplier_address, amount_ccc, price_per_unit_micro_algo}
+    """
+    try:
+        from onchain_ops import create_listing_offchain
+        listing = create_listing_offchain(
+            supplier_id=payload.supplier_id,
+            supplier_address=payload.supplier_address,
+            amount_ccc=payload.amount_ccc,
+            price_per_unit_micro_algo=payload.price_per_unit_micro_algo,
+        )
+        return {
+            "status": "listed",
+            "listing": listing,
+            "total_algo": (payload.amount_ccc * payload.price_per_unit_micro_algo) / 1_000_000,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Listing failed: {str(exc)}")
+
+
+@app.post("/api/marketplace/buy")
+def marketplace_buy(payload: MarketplaceBuyRequest) -> Dict[str, Any]:
+    """
+    Buyer purchases a listed credit bundle.
+    POST /api/marketplace/buy
+    Body: {listing_id, buyer_address, buyer_supplier_id}
+
+    Atomicity guarantee: payment and token transfer happen off-chain via
+    algokit-utils AtomicTransactionComposer; this endpoint records the sale.
+    """
+    try:
+        from onchain_ops import execute_buy_offchain
+        result = execute_buy_offchain(
+            listing_id=payload.listing_id,
+            buyer_address=payload.buyer_address,
+            buyer_supplier_id=payload.buyer_supplier_id,
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result["reason"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Purchase failed: {str(exc)}")
+
+
+@app.get("/api/marketplace/listings")
+def marketplace_listings(active_only: bool = True) -> Dict[str, Any]:
+    """Return all marketplace listings."""
+    try:
+        from onchain_ops import _load_listings
+        store = _load_listings()
+        listings = list(store["listings"].values())
+        if active_only:
+            listings = [l for l in listings if l.get("status") == "active"]
+        return {"items": listings, "count": len(listings)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Staking endpoints (Part 5) ───────────────────────────────────────────────
+
+class StakeRequest(BaseModel):
+    supplier_id: str = Field(min_length=1, max_length=120)
+    supplier_address: str = Field(min_length=58, max_length=58)
+    amount_ccc: int = Field(gt=0)
+
+
+class UnstakeRequest(BaseModel):
+    supplier_id: str = Field(min_length=1, max_length=120)
+
+
+@app.get("/api/staking/{supplier_id}")
+def get_staking_status(supplier_id: str) -> Dict[str, Any]:
+    """
+    GET /api/staking/{supplier_id}
+    Returns current stake position and pending yield for a supplier.
+    """
+    try:
+        from onchain_ops import get_stake_status
+        return get_stake_status(supplier_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/staking/stake")
+def staking_stake(payload: StakeRequest) -> Dict[str, Any]:
+    """
+    POST /api/staking/stake
+    Lock CCC tokens for 30 days to earn 10% ALGO yield.
+    Body: {supplier_id, supplier_address, amount_ccc}
+    """
+    try:
+        from onchain_ops import stake_ccc
+        result = stake_ccc(
+            supplier_id=payload.supplier_id,
+            supplier_address=payload.supplier_address,
+            amount_ccc=payload.amount_ccc,
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result["reason"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Stake failed: {str(exc)}")
+
+
+@app.post("/api/staking/unstake")
+def staking_unstake(payload: UnstakeRequest) -> Dict[str, Any]:
+    """
+    POST /api/staking/unstake
+    Retrieve CCC tokens after 30-day lock period.
+    Body: {supplier_id}
+    """
+    try:
+        from onchain_ops import unstake_ccc
+        result = unstake_ccc(payload.supplier_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result["reason"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Unstake failed: {str(exc)}")
+
+
+@app.post("/api/staking/claim-yield")
+def staking_claim_yield(payload: UnstakeRequest) -> Dict[str, Any]:
+    """
+    POST /api/staking/claim-yield
+    Claim 10% ALGO yield after lock period.
+    Body: {supplier_id}
+    """
+    try:
+        from onchain_ops import claim_yield_offchain
+        result = claim_yield_offchain(payload.supplier_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result["reason"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Claim yield failed: {str(exc)}")
+
+
+# ── Compliance bonds query (Part 3) ──────────────────────────────────────────
+
+@app.get("/api/bonds/{supplier_id}")
+def get_bond_status(supplier_id: str) -> Dict[str, Any]:
+    """Return current compliance bond status for a supplier."""
+    try:
+        from onchain_ops import _load_bonds
+        bonds = _load_bonds()
+        bond = bonds.get(supplier_id)
+        if not bond:
+            return {"supplier_id": supplier_id, "status": "no_bond"}
+        return bond
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/api/bonds")
+def list_bonds(active_only: bool = False) -> Dict[str, Any]:
+    """Return all compliance bonds."""
+    try:
+        from onchain_ops import _load_bonds
+        bonds = _load_bonds()
+        items = list(bonds.values())
+        if active_only:
+            items = [b for b in items if b.get("status") == "active"]
+        return {"items": items, "count": len(items)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Part 4 — ReportingAgent Pay-Per-Report Endpoints
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/report/{audit_id}")
+async def get_encrypted_report(audit_id: str) -> Dict[str, Any]:
+    """
+    GET /api/report/{audit_id}
+
+    Returns the encrypted report blob + payment instructions.
+    The caller must first pay 0.02 ALGO to the ReportingAgent wallet
+    and then call POST /api/report/{audit_id}/pay with the TX ID.
+    """
+    from agents.reporting_agent import get_report_blob  # type: ignore
+
+    entry = get_report_blob(audit_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Report not found for this audit_id")
+
+    if entry.get("paid"):
+        # Already paid — return decrypted report
+        from agents.reporting_agent import get_decrypted_report  # type: ignore
+        available, text, err = get_decrypted_report(audit_id)
+        if available:
+            return {"audit_id": audit_id, "paid": True, "report_text": text}
+        raise HTTPException(status_code=500, detail=f"Decryption failed: {err}")
+
+    # Not paid yet — return blob + payment instructions
+    try:
+        from agents.agent_wallets import get_agent_address  # type: ignore
+        reporting_wallet = get_agent_address("reporting_agent")
+    except Exception:
+        reporting_wallet = None
+
+    bc = get_blockchain_client()
+    try:
+        from agents.x402_payments import build_payment_required_body  # type: ignore
+        instructions = build_payment_required_body(
+            receiver_address=reporting_wallet or bc.address or "",
+            amount_algo=REPORT_PAYMENT_ALGO,
+            description="CfoE Audit Report — 0.02 ALGO for decrypted access",
+        )
+    except Exception:
+        instructions = {
+            "payTo": reporting_wallet or bc.address or "",
+            "amount_algo": REPORT_PAYMENT_ALGO,
+        }
+
+    return {
+        "audit_id": audit_id,
+        "paid": False,
+        "supplier_name": entry.get("supplier_name"),
+        "encrypted_blob": entry.get("encrypted_blob"),
+        "payment_instructions": instructions,
+        "pay_url": f"/api/report/{audit_id}/pay",
+        "message": f"Send {REPORT_PAYMENT_ALGO} ALGO to the ReportingAgent wallet, "
+                   f"then POST to /api/report/{audit_id}/pay with the TX ID.",
+    }
+
+
+class ReportPayRequest(BaseModel):
+    tx_id: str = Field(min_length=50, max_length=70)
+
+
+@app.post("/api/report/{audit_id}/pay")
+async def confirm_report_payment(audit_id: str, body: ReportPayRequest) -> Dict[str, Any]:
+    """
+    POST /api/report/{audit_id}/pay
+
+    Body: { "tx_id": "<algorand_tx_id>" }
+
+    Verifies the payment on-chain (via algod — never trusts header alone).
+    On success, marks the report as paid and returns the decrypted content.
+    Times out after 10 seconds and returns status "pending" if unconfirmed.
+    """
+    from agents.reporting_agent import (  # type: ignore
+        get_report_blob, mark_report_paid, get_decrypted_report
+    )
+
+    entry = get_report_blob(audit_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    if entry.get("paid"):
+        # Already paid — return directly
+        _, text, _ = get_decrypted_report(audit_id)
+        return {"audit_id": audit_id, "status": "already_paid", "report_text": text}
+
+    # Determine expected receiver
+    try:
+        from agents.agent_wallets import get_agent_address  # type: ignore
+        reporting_wallet = get_agent_address("reporting_agent")
+    except Exception:
+        reporting_wallet = None
+
+    bc = get_blockchain_client()
+    expected_receiver = reporting_wallet or bc.address or ""
+
+    # Verify on-chain (10 s timeout)
+    try:
+        from agents.x402_payments import verify_payment_on_chain  # type: ignore
+        verified, err = verify_payment_on_chain(
+            tx_id=body.tx_id,
+            expected_receiver=expected_receiver,
+            expected_amount_micro=int(REPORT_PAYMENT_ALGO * 1_000_000),
+            max_wait_sec=10,
+        )
+    except Exception as exc:
+        verified, err = False, str(exc)
+
+    if not verified:
+        # Return pending state — never block the caller forever
+        return {
+            "audit_id": audit_id,
+            "status": "pending",
+            "tx_id": body.tx_id,
+            "message": f"Payment not yet confirmed: {err}. Retry in ~5 seconds.",
+        }
+
+    # Payment confirmed — decrypt and deliver
+    mark_report_paid(audit_id, body.tx_id)
+    _, text, decrypt_err = get_decrypted_report(audit_id)
+
+    if not text:
+        raise HTTPException(status_code=500, detail=f"Decryption failed: {decrypt_err}")
+
+    return {
+        "audit_id": audit_id,
+        "status": "confirmed",
+        "tx_id": body.tx_id,
+        "report_text": text,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Part 5 — Revenue Dashboard Endpoints
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/revenue")
+def get_revenue_dashboard() -> Dict[str, Any]:
+    """
+    GET /api/revenue
+
+    Aggregates data from data/agent_payments.json for the Revenue tab.
+    Returns:
+      - total ALGO earned per agent
+      - total audits paid for
+      - total reports sold
+      - agent wallet balances
+      - last 10 X402 payments with TX IDs
+    """
+    payments_path = DATA_DIR / "agent_payments.json"
+    payments: list = []
+    if payments_path.exists():
+        try:
+            raw = payments_path.read_text(encoding="utf-8").strip() or "[]"
+            payments = json.loads(raw)
+        except Exception:
+            payments = []
+
+    # ── Aggregate by agent ────────────────────────────────────────────────
+    agent_earnings: Dict[str, float] = {}
+    total_audits_paid = 0
+    total_reports_sold = 0
+
+    for p in payments:
+        agent = p.get("agent", "unknown")
+        direction = p.get("direction", "outgoing")
+        amount = p.get("amount_algo", 0.0)
+        service = p.get("service", "")
+        status = p.get("status", "")
+
+        if direction == "incoming" and status == "confirmed":
+            agent_earnings[agent] = agent_earnings.get(agent, 0.0) + amount
+            if service == "audit":
+                total_audits_paid += 1
+            elif service == "report_access":
+                total_reports_sold += 1
+
+    # ── Agent wallet balances ─────────────────────────────────────────────
+    wallets_path = DATA_DIR / "agent_wallets.json"
+    wallet_addresses: Dict[str, str] = {}
+    if wallets_path.exists():
+        try:
+            raw = wallets_path.read_text(encoding="utf-8").strip() or "{}"
+            wd = json.loads(raw)
+            for name, info in wd.items():
+                if isinstance(info, dict):
+                    wallet_addresses[name] = info.get("address", "")
+        except Exception:
+            pass
+
+    # Try to fetch live balances (best effort — may fail if algod is down)
+    agent_balances: Dict[str, Any] = {}
+    for name, addr in wallet_addresses.items():
+        agent_balances[name] = {
+            "address": addr,
+            "balance_algo": None,  # populated below
+        }
+
+    try:
+        from algosdk.v2client import algod as _algod  # type: ignore
+        _server = os.getenv("ALGOD_SERVER", "https://testnet-api.algonode.cloud")
+        _token = os.getenv("ALGOD_TOKEN", "")
+        if _token:
+            _ac = _algod.AlgodClient(_token, _server)
+        else:
+            _ac = _algod.AlgodClient("", _server, headers={"User-Agent": "CfoE"})
+
+        for name, info in agent_balances.items():
+            addr = info.get("address", "")
+            if addr:
+                try:
+                    acct_info = _ac.account_info(addr)
+                    bal = acct_info.get("amount", 0) / 1_000_000
+                    agent_balances[name]["balance_algo"] = round(bal, 6)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # ── Last 10 payments ──────────────────────────────────────────────────
+    recent_payments = payments[:10]
+    for p in recent_payments:
+        tx = p.get("tx_id")
+        if tx:
+            p["explorer_url"] = f"https://testnet.algoexplorer.io/tx/{tx}"
+
+    return {
+        "total_algo_earned": round(sum(agent_earnings.values()), 6),
+        "earnings_by_agent": {k: round(v, 6) for k, v in agent_earnings.items()},
+        "total_audits_paid": total_audits_paid,
+        "total_reports_sold": total_reports_sold,
+        "agent_balances": agent_balances,
+        "recent_payments": recent_payments,
+        "payment_count": len(payments),
+    }
+
+
+@app.get("/api/agent-wallets")
+def get_agent_wallets() -> Dict[str, Any]:
+    """
+    GET /api/agent-wallets
+
+    Returns agent wallet addresses and live balances (polled by Revenue dashboard).
+    """
+    try:
+        from agents.agent_wallets import initialize_agent_wallets  # type: ignore
+        info = initialize_agent_wallets()
+        return {"agents": info, "count": len(info)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # Store active WebSocket connections
