@@ -18,12 +18,18 @@ Usage:
 import os
 import hashlib
 import json
+import threading
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Persistent ledger file — survives server restarts and fresh device setups
+_LEDGER_PATH = Path(__file__).resolve().parent / "data" / "blockchain_ledger.json"
+_ledger_lock = threading.Lock()
 
 
 class CfoEBlockchainClient:
@@ -47,9 +53,49 @@ class CfoEBlockchainClient:
         self.wallet_connected = False
 
         # In-memory ledger (mirrors on-chain records)
+        # Loaded from disk on startup so data survives server restarts
         self.score_anchors: List[Dict] = []
         self.hitl_decisions: List[Dict] = []
         self.report_hashes: List[Dict] = []
+        self._load_ledger()
+
+    # ================================================================== #
+    #  PERSISTENCE
+    # ================================================================== #
+
+    def _load_ledger(self) -> None:
+        """Load the blockchain audit trail from disk."""
+        with _ledger_lock:
+            try:
+                if _LEDGER_PATH.exists():
+                    raw = _LEDGER_PATH.read_text(encoding="utf-8").strip()
+                    if raw:
+                        data = json.loads(raw)
+                        self.score_anchors = data.get("score_anchors", [])
+                        self.hitl_decisions = data.get("hitl_decisions", [])
+                        self.report_hashes = data.get("report_hashes", [])
+                        total = len(self.score_anchors) + len(self.hitl_decisions) + len(self.report_hashes)
+                        if total:
+                            print(f"  [Blockchain] Loaded {total} records from ledger")
+            except (json.JSONDecodeError, OSError) as exc:
+                print(f"  [Blockchain] WARNING: Could not load ledger: {exc}")
+
+    def _save_ledger(self) -> None:
+        """Persist the blockchain audit trail to disk."""
+        with _ledger_lock:
+            try:
+                _LEDGER_PATH.parent.mkdir(parents=True, exist_ok=True)
+                payload = {
+                    "score_anchors": self.score_anchors,
+                    "hitl_decisions": self.hitl_decisions,
+                    "report_hashes": self.report_hashes,
+                }
+                _LEDGER_PATH.write_text(
+                    json.dumps(payload, indent=2, default=str),
+                    encoding="utf-8",
+                )
+            except OSError as exc:
+                print(f"  [Blockchain] WARNING: Could not save ledger: {exc}")
 
     # ================================================================== #
     #  CONNECTION
@@ -269,6 +315,7 @@ class CfoEBlockchainClient:
             "timestamp": timestamp,
         }
         self.score_anchors.append(record)
+        self._save_ledger()
 
         if on_chain:
             print(f"  [Blockchain] SCORE ANCHORED on-chain")
@@ -358,6 +405,7 @@ class CfoEBlockchainClient:
             "cryptographic_proof": on_chain,  # TX signature = proof
         }
         self.hitl_decisions.append(record)
+        self._save_ledger()
 
         if on_chain:
             print(f"  [Blockchain] HITL DECISION recorded on-chain")
@@ -450,6 +498,7 @@ class CfoEBlockchainClient:
             },
         }
         self.report_hashes.append(record)
+        self._save_ledger()
 
         if on_chain:
             print(f"  [Blockchain] REPORT HASH registered on-chain")

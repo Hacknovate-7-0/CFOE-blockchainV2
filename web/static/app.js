@@ -293,6 +293,22 @@
             <span class="blockchain-label">Token Balance:</span>
             <span class="blockchain-value">${(data.token_balance || 0).toFixed(1)} CCT</span>
           </div>
+          <div class="blockchain-item">
+            <span class="blockchain-label">On-Chain Records:</span>
+            <span class="blockchain-value">${data.total_blockchain_records || 0} total</span>
+          </div>
+          <div class="blockchain-item">
+            <span class="blockchain-label">Score Anchors:</span>
+            <span class="blockchain-value">${data.score_anchors || 0}</span>
+          </div>
+          <div class="blockchain-item">
+            <span class="blockchain-label">HITL Decisions:</span>
+            <span class="blockchain-value">${data.hitl_decisions || 0}</span>
+          </div>
+          <div class="blockchain-item">
+            <span class="blockchain-label">Report Hashes:</span>
+            <span class="blockchain-value">${data.report_hashes || 0}</span>
+          </div>
         </div>
       `;
       }
@@ -1284,7 +1300,33 @@ ${item.report_text || 'No report generated.'}</div>
       optinForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const assetId = parseInt(document.getElementById('optin-asset-id').value);
-        await handleOptIn(assetId);
+        
+        showLoading('Saving token ID...');
+        
+        await fetch('/api/tokens/set-asset-id', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ asset_id: assetId }),
+        });
+        
+        showLoading('Checking opt-in status...');
+        
+        try {
+          const res = await fetch(`/api/tokens/balance/${state.walletStatus.address}`);
+          if (res.ok) {
+            const data = await res.json();
+            const optedIn = data.balance?.opted_in;
+            setStatus(`Token ID ${assetId} saved. Opted-in: ${optedIn ? 'Yes' : 'No'}`);
+          } else {
+            setStatus(`Token ID ${assetId} saved to token_state.json`);
+          }
+        } catch {
+          setStatus(`Token ID ${assetId} saved to token_state.json`);
+        }
+        
+        await fetchTokenSummary();
+        await fetchBlockchainStatus();
+        hideLoading();
       });
     }
     
@@ -1429,24 +1471,28 @@ ${item.report_text || 'No report generated.'}</div>
     
     // Render received credits (filter by current wallet address)
     const receivedBody = document.getElementById('token-received-body');
-    const receivedCredits = state.tokenData.issued.filter(item => 
-      state.walletStatus.address && item.recipient === state.walletStatus.address
-    );
-    
-    if (receivedCredits.length === 0) {
-      receivedBody.innerHTML = '<tr><td colspan="7" class="lb-empty">No credits received yet</td></tr>';
+    if (!state.walletStatus.address) {
+      receivedBody.innerHTML = '<tr><td colspan="7" class="lb-empty">Connect wallet to see received credits</td></tr>';
     } else {
-      receivedBody.innerHTML = receivedCredits.map(item => `
-        <tr>
-          <td>${truncateAddress(item.issuer_address || 'System')}</td>
-          <td>${(item.carbon_credits || 0).toFixed(1)}</td>
-          <td>${(item.tokens_issued || 0).toFixed(1)}</td>
-          <td>${item.reason || 'N/A'}</td>
-          <td>${item.audit_id || 'N/A'}</td>
-          <td><code>${(item.tx_id || 'N/A').substring(0, 16)}...</code></td>
-          <td>${formatDate(item.timestamp)}</td>
-        </tr>
-      `).join('');
+      const receivedCredits = state.tokenData.issued.filter(item => 
+        item.recipient && item.recipient.toLowerCase() === state.walletStatus.address.toLowerCase()
+      );
+      
+      if (receivedCredits.length === 0) {
+        receivedBody.innerHTML = '<tr><td colspan="7" class="lb-empty">No credits received yet</td></tr>';
+      } else {
+        receivedBody.innerHTML = receivedCredits.map(item => `
+          <tr>
+            <td>${truncateAddress(item.issuer_address || 'System')}</td>
+            <td>${(item.carbon_credits || 0).toFixed(1)}</td>
+            <td>${(item.tokens_issued || 0).toFixed(1)}</td>
+            <td>${item.reason || 'N/A'}</td>
+            <td>${item.audit_id || 'N/A'}</td>
+            <td><code>${(item.tx_id || 'N/A').substring(0, 16)}...</code></td>
+            <td>${formatDate(item.timestamp)}</td>
+          </tr>
+        `).join('');
+      }
     }
     
     // Render retired credits

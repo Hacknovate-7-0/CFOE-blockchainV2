@@ -62,7 +62,10 @@ def _save_asset_id(asset_id: int) -> None:
         _TOKEN_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         existing = {}
         if _TOKEN_STATE_FILE.exists():
-            existing = json.loads(_TOKEN_STATE_FILE.read_text(encoding="utf-8"))
+            try:
+                existing = json.loads(_TOKEN_STATE_FILE.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                existing = {}
         existing["carbon_credit_asset_id"] = asset_id
         _TOKEN_STATE_FILE.write_text(json.dumps(existing, indent=2), encoding="utf-8")
     except Exception as e:
@@ -70,15 +73,30 @@ def _save_asset_id(asset_id: int) -> None:
 
 
 _LEDGER_FILE = Path(__file__).resolve().parent / "data" / "credit_issuance_ledger.json"
+_RETIRED_FILE = Path(__file__).resolve().parent / "data" / "retired_credits_ledger.json"
 
 
 def _load_persisted_ledger() -> List[Dict]:
     """Load previously issued credits from disk."""
     try:
         if _LEDGER_FILE.exists():
-            return json.loads(_LEDGER_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        pass
+            content = _LEDGER_FILE.read_text(encoding="utf-8").strip()
+            if content:
+                return json.loads(content)
+    except Exception as e:
+        print(f"  [Token] WARNING: Could not load ledger: {e}")
+    return []
+
+
+def _load_persisted_retired() -> List[Dict]:
+    """Load previously retired credits from disk."""
+    try:
+        if _RETIRED_FILE.exists():
+            content = _RETIRED_FILE.read_text(encoding="utf-8").strip()
+            if content:
+                return json.loads(content)
+    except Exception as e:
+        print(f"  [Token] WARNING: Could not load retired ledger: {e}")
     return []
 
 
@@ -87,8 +105,18 @@ def _save_ledger(issued_credits: List[Dict]) -> None:
     try:
         _LEDGER_FILE.parent.mkdir(parents=True, exist_ok=True)
         _LEDGER_FILE.write_text(json.dumps(issued_credits, indent=2), encoding="utf-8")
+        print(f"  [Token] Saved {len(issued_credits)} issued records to ledger")
     except Exception as e:
         print(f"  [Token] WARNING: Could not persist ledger: {e}")
+
+
+def _save_retired(retired_credits: List[Dict]) -> None:
+    """Persist the retired credits ledger to disk."""
+    try:
+        _RETIRED_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _RETIRED_FILE.write_text(json.dumps(retired_credits, indent=2), encoding="utf-8")
+    except Exception as e:
+        print(f"  [Token] WARNING: Could not persist retired ledger: {e}")
 
 
 class CarbonCreditTokenManager:
@@ -119,7 +147,9 @@ class CarbonCreditTokenManager:
         self.issued_credits: List[Dict] = _load_persisted_ledger()
         if self.issued_credits:
             print(f"  [Token] Loaded {len(self.issued_credits)} persisted credit records")
-        self.retired_credits: List[Dict] = []
+        self.retired_credits: List[Dict] = _load_persisted_retired()
+        if self.retired_credits:
+            print(f"  [Token] Loaded {len(self.retired_credits)} persisted retired records")
         self.audit_nfts: List[Dict] = []
         
     # ================================================================== #
@@ -280,22 +310,7 @@ class CarbonCreditTokenManager:
         reason: str,
         audit_id: Optional[str] = None,
     ) -> Optional[str]:
-        """
-        Issue carbon credits to a supplier for verified emission reductions.
-        
-        Tries a real ASA token transfer first. If the recipient hasn't opted
-        in, seamlessly records via on-chain note transaction instead.
-        Either way the issuance is recorded on the blockchain.
-        
-        Args:
-            recipient_address: Algorand address to receive tokens
-            carbon_credits: Carbon credits in tons CO2eq
-            reason: Reason for issuance
-            audit_id: Associated audit ID for traceability
-            
-        Returns:
-            Transaction ID or None if failed
-        """
+        """Issue carbon credits to a supplier."""
         if not self.carbon_credit_asset_id:
             print("  [Token] ERROR: Carbon credit token not created yet")
             return None
@@ -305,8 +320,8 @@ class CarbonCreditTokenManager:
             return None
         
         tokens = carbon_credits / self.CREDITS_PER_TOKEN
+        print(f"  [Token] Attempting to issue {carbon_credits} credits to {recipient_address}")
         
-        # Try real ASA transfer first
         tx_id = self._try_asa_transfer(recipient_address, carbon_credits, tokens, reason, audit_id, "CfoE_CREDIT_ISSUANCE")
         
         if tx_id:
@@ -331,7 +346,6 @@ class CarbonCreditTokenManager:
             print(f"          TX:             {tx_id}")
             return tx_id
         
-        # ASA transfer unavailable — record via note transaction instead
         print(f"  [Token] ASA transfer unavailable, recording via on-chain note transaction")
         result = self.issue_credits_via_note(recipient_address, carbon_credits, reason, audit_id)
         if result:
@@ -600,6 +614,7 @@ class CarbonCreditTokenManager:
                 "status": "RETIRED",
             }
             self.retired_credits.append(record)
+            _save_retired(self.retired_credits)
             
             print(f"  [Token] CREDITS RETIRED")
             print(f"          Carbon Credits: {carbon_credits:,.0f} tons CO2eq")
@@ -804,6 +819,11 @@ class CarbonCreditTokenManager:
             
         lines.append("=" * 60)
         return "\n".join(lines)
+
+    def refresh_ledgers(self) -> None:
+        """Reload ledgers from disk."""
+        self.issued_credits = _load_persisted_ledger()
+        self.retired_credits = _load_persisted_retired()
 
 
 # ================================================================== #

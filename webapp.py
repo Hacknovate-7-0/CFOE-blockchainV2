@@ -159,6 +159,37 @@ def ensure_storage() -> None:
     if not PENDING_PATH.exists():
         PENDING_PATH.write_text("[]", encoding="utf-8")
 
+    # Ensure credit ledger files exist (used by credit_agent)
+    credit_ledger_path = DATA_DIR / "credit_ledger.json"
+    if not credit_ledger_path.exists():
+        credit_ledger_path.write_text("{}", encoding="utf-8")
+
+    # Ensure credit issuance ledger exists (used by carbon_token_manager)
+    credit_issuance_path = DATA_DIR / "credit_issuance_ledger.json"
+    if not credit_issuance_path.exists():
+        credit_issuance_path.write_text("[]", encoding="utf-8")
+    else:
+        content = credit_issuance_path.read_text(encoding="utf-8").strip()
+        if not content:
+            credit_issuance_path.write_text("[]", encoding="utf-8")
+
+    # Ensure token state file exists (used by carbon_token_manager)
+    token_state_path = DATA_DIR / "token_state.json"
+    if not token_state_path.exists():
+        token_state_path.write_text("{}", encoding="utf-8")
+    else:
+        content = token_state_path.read_text(encoding="utf-8").strip()
+        if not content:
+            token_state_path.write_text("{}", encoding="utf-8")
+
+    # Ensure blockchain ledger exists (used by blockchain_client for persistence)
+    blockchain_ledger_path = DATA_DIR / "blockchain_ledger.json"
+    if not blockchain_ledger_path.exists():
+        blockchain_ledger_path.write_text(
+            '{"score_anchors": [], "hitl_decisions": [], "report_hashes": []}',
+            encoding="utf-8",
+        )
+
     if not OUTPUT_CSV_PATH.exists():
         with OUTPUT_CSV_PATH.open("w", encoding="utf-8", newline="") as csv_file:
             writer = csv.DictWriter(
@@ -705,9 +736,22 @@ def export_audit_files(result: Dict[str, Any]) -> Dict[str, str]:
     return links
 
 
+# ── Wallet state (must be defined before startup_event uses it) ───
+
+_wallet_state: Dict[str, Any] = {"connected": False, "address": None}
+
+
 @app.on_event("startup")
 def startup_event() -> None:
     ensure_storage()
+    
+    # Sync _wallet_state with .env auto-connected wallet
+    # This ensures the frontend sees the correct state on fresh device setups
+    bc = get_blockchain_client()
+    if bc.wallet_connected and bc.address:
+        _wallet_state["connected"] = True
+        _wallet_state["address"] = bc.address
+        print(f"  [Startup] Auto-synced wallet state from .env: {bc.address[:16]}...")
 
 
 @app.get("/")
@@ -965,15 +1009,25 @@ def blockchain_status() -> Dict[str, Any]:
     # Re-check wallet connection from .env if not already connected
     if not bc.wallet_connected:
         import os
-        from algosdk import account
-        env_key = os.getenv("ALGORAND_PRIVATE_KEY")
-        if env_key:
-            try:
-                bc.address = account.address_from_private_key(env_key)
-                bc.private_key = env_key
-                bc.wallet_connected = True
-            except Exception:
-                pass
+        try:
+            from algosdk import account
+            env_key = os.getenv("ALGORAND_PRIVATE_KEY")
+            if env_key:
+                try:
+                    bc.address = account.address_from_private_key(env_key)
+                    bc.private_key = env_key
+                    bc.wallet_connected = True
+                except Exception:
+                    pass
+        except ImportError:
+            pass
+    
+    # Keep _wallet_state in sync with actual blockchain client state
+    # This is critical for fresh device setups where .env auto-connects
+    # the blockchain client but _wallet_state was never updated
+    if bc.wallet_connected and bc.address:
+        _wallet_state["connected"] = True
+        _wallet_state["address"] = bc.address
     
     balance_info = bc.get_balance()
     history = bc.get_audit_history()
@@ -1004,6 +1058,14 @@ def blockchain_status() -> Dict[str, Any]:
         "token_supply": total_issued - total_retired,
         "credits_issued": total_issued,
         "credits_retired": total_retired,
+        "score_anchors": len(history.get("score_anchors", [])),
+        "hitl_decisions": len(history.get("hitl_decisions", [])),
+        "report_hashes": len(history.get("report_hashes", [])),
+        "total_blockchain_records": (
+            len(history.get("score_anchors", []))
+            + len(history.get("hitl_decisions", []))
+            + len(history.get("report_hashes", []))
+        ),
     }
 
 
@@ -1069,9 +1131,6 @@ def leaderboard() -> Dict[str, Any]:
 
 # ── Wallet endpoints ──────────────────────────────────────────────
 
-_wallet_state: Dict[str, Any] = {"connected": False, "address": None}
-
-
 class WalletConnectRequest(BaseModel):
     address: str = Field(min_length=1, max_length=128)
 
@@ -1079,6 +1138,11 @@ class WalletConnectRequest(BaseModel):
 @app.get("/api/wallet/status")
 def wallet_status() -> Dict[str, Any]:
     """Return the current wallet connection state."""
+    # Sync with actual blockchain client state (handles .env auto-connect on fresh devices)
+    bc = get_blockchain_client()
+    if bc.wallet_connected and bc.address:
+        _wallet_state["connected"] = True
+        _wallet_state["address"] = bc.address
     return _wallet_state
 
 
@@ -1147,6 +1211,29 @@ class NFTCreateRequest(BaseModel):
     classification: str
     emissions: float
     metadata_url: str = ""
+
+
+class SetAssetIdRequest(BaseModel):
+    asset_id: int
+
+
+@app.post("/api/tokens/set-asset-id")
+def set_asset_id(payload: SetAssetIdRequest) -> Dict[str, Any]:
+    """Save/update the asset ID in the token_state.json file."""
+    from carbon_token_manager import _save_asset_id
+    try:
+        _save_asset_id(payload.asset_id)
+        
+        tm = get_token_manager()
+        tm.carbon_credit_asset_id = payload.asset_id
+        
+        return {
+            "status": "success",
+            "asset_id": payload.asset_id,
+            "message": f"Asset ID {payload.asset_id} saved successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save asset ID: {str(e)}")
 
 
 @app.post("/api/tokens/optin")
@@ -1302,6 +1389,7 @@ def create_audit_nft(payload: NFTCreateRequest) -> Dict[str, Any]:
 def get_token_balance(address: str) -> Dict[str, Any]:
     """Get carbon credit balance for an address."""
     tm = get_token_manager()
+    tm.refresh_ledgers()
     balance = tm.get_credit_balance(address)
     
     return {
@@ -1315,6 +1403,7 @@ def get_token_balance(address: str) -> Dict[str, Any]:
 def get_token_summary() -> Dict[str, Any]:
     """Get summary of all token operations."""
     tm = get_token_manager()
+    tm.refresh_ledgers()
     
     total_issued = sum(r.get("carbon_credits", 0) for r in tm.issued_credits)
     total_retired = sum(r.get("carbon_credits", 0) for r in tm.retired_credits)

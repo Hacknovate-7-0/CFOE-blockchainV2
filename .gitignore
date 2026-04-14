@@ -37,8 +37,8 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Runtime app data
-data/audit_history.json
+# Runtime app data (device-specific, auto-created on startup)
+data/*.json
 
 # Exported output artifacts
 outputs/*
