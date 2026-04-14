@@ -1667,6 +1667,24 @@ tbody tr {
   line-height: 1;
 }
 
+.lb-create-nft-btn {
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  background: linear-gradient(120deg, #da8a43, #e9a53f);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  white-space: nowrap;
+}
+
+.lb-create-nft-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(218, 138, 67, 0.3);
+}
+
 /* ── Leaderboard Table ────────────────────────────────────────── */
 
 .lb-table {

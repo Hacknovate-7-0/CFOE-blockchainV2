@@ -1779,6 +1779,7 @@ ${item.report_text || 'No report generated.'}</div>
           <div class="lb-podium-badge">${highestBadge}</div>
           <div class="lb-podium-name" title="${s.supplier_name}">${s.supplier_name}</div>
           <div class="lb-podium-credits">${s.total_credits} pts</div>
+          <button type="button" class="lb-create-nft-btn" data-supplier="${s.supplier_name}" data-score="${s.latest_esg_score}" data-classification="${s.latest_classification || 'Low Risk'}" title="Create NFT for ${s.supplier_name}">🎖️ Create NFT</button>
         </div>
       `;
     }).join('');
@@ -1805,6 +1806,35 @@ ${item.report_text || 'No report generated.'}</div>
     }).join('');
 
     updateLeaderboardTime();
+    
+    // Attach event listeners to Create NFT buttons
+    document.querySelectorAll('.lb-create-nft-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const supplierName = e.currentTarget.dataset.supplier;
+        const score = parseFloat(e.currentTarget.dataset.score);
+        const classification = e.currentTarget.dataset.classification;
+        
+        // Find the latest audit for this supplier
+        const supplierAudit = state.audits.find(a => a.supplier_name === supplierName);
+        
+        // Switch to tokens tab
+        switchTab('tokens');
+        
+        // Pre-fill NFT form
+        setTimeout(() => {
+          document.getElementById('nft-supplier').value = supplierName;
+          document.getElementById('nft-risk-score').value = score || (supplierAudit?.risk_score || 0);
+          document.getElementById('nft-classification').value = classification || (supplierAudit?.classification || 'Low Risk');
+          document.getElementById('nft-emissions').value = supplierAudit?.emissions || 0;
+          document.getElementById('nft-audit-id').value = supplierAudit?.audit_id || `AUD-${supplierName.substring(0,6).toUpperCase()}`;
+          
+          // Scroll to NFT form
+          document.getElementById('create-nft-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setStatus(`NFT form pre-filled for ${supplierName}`);
+        }, 100);
+      });
+    });
   };
 
   const updateLeaderboardTime = () => {
