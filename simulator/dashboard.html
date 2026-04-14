@@ -259,8 +259,8 @@ body::before{
 
 <script>
 /* ── Config ───────────────────────────────────────────────────────── */
-const SIM_BASE = 'http://localhost:8000';
-const WS_URL   = 'ws://localhost:8000/ws';
+const SIM_BASE = window.location.origin;
+const WS_URL   = 'ws://' + window.location.host + '/ws/simulator';
 
 /* ── State ────────────────────────────────────────────────────────── */
 let ws = null;
@@ -397,16 +397,10 @@ async function api(path, method = 'POST') {
 async function runAudit() {
   const btn = document.getElementById('btn-audit');
   btn.disabled = true;
-  btn.textContent = '⏳ Sending to CfoE…';
-  try {
-    const result = await api('/audit/run', 'POST');
-    // If audit succeeded (has audit_id), auto-open CfoE dashboard
-    if (result && result.audit_id) {
-      window.open('http://localhost:8001', '_blank');
-    }
-  } catch (e) { console.error(e); }
-  btn.disabled = false;
-  btn.innerHTML = '🔍 Run Audit & Send to CfoE';
+  btn.textContent = '⏳ Redirecting to CfoE…';
+  
+  // Redirect to home page first
+  window.location.href = '/?trigger_audit=true';
 }
 
 /* ── Tick handler ─────────────────────────────────────────────────── */
@@ -537,7 +531,7 @@ function handleAuditResult(data) {
       <span class="audit-row__value">${r.violations ?? 0}</span>
     </div>
     <div style="margin-top:14px">
-      <a href="http://localhost:8001" target="_blank" class="btn btn--view-cfoe" style="text-decoration:none;display:inline-flex">↗ View in CfoE Dashboard</a>
+      <a href="/" class="btn btn--view-cfoe" style="text-decoration:none;display:inline-flex">↗ View in CfoE Dashboard</a>
     </div>
   `;
 }
@@ -597,7 +591,7 @@ loadAuditHistory();
 async function loadAuditHistory() {
   const $history = document.getElementById('audit-history');
   try {
-    const res = await fetch('http://localhost:8001/api/audits?limit=10');
+    const res = await fetch('/api/audits?limit=10');
     const data = await res.json();
     const audits = data.items || [];
     

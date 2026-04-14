@@ -1923,6 +1923,32 @@ ${item.report_text || 'No report generated.'}</div>
   const initialize = async () => {
     syncSplitLayoutFromSession();
     updateChimneyRisk('Low Risk');
+    
+    // Check if we should trigger simulator audit
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('trigger_audit') === 'true') {
+      // Remove the parameter from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Trigger the audit after a short delay
+      setTimeout(async () => {
+        try {
+          setStatus('Running simulator audit...');
+          showLogPanel();
+          const response = await fetch('/audit/run', { method: 'POST' });
+          if (response.ok) {
+            const result = await response.json();
+            await fetchMetrics();
+            await fetchBlockchainStatus();
+            await fetchHistory();
+            setStatus(`Simulator audit complete for ${result.supplier_name || 'supplier'}.`);
+          }
+        } catch (error) {
+          setStatus('Simulator audit failed: ' + error.message, true);
+        }
+      }, 500);
+    }
+    
     let retries = 0;
     while (!window.walletManager && retries < 50) {
       await new Promise((resolve) => setTimeout(resolve, 100));

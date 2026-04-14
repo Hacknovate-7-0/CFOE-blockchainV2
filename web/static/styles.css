@@ -1577,6 +1577,31 @@ tbody tr {
   box-shadow: 0 4px 12px rgba(30, 128, 86, 0.25);
 }
 
+.simulator-link {
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.simulator-btn {
+  background: linear-gradient(120deg, #d83f3f, #a7382b) !important;
+  color: #fff !important;
+  animation: pulse-red 2s ease-in-out infinite;
+}
+
+.simulator-btn:hover {
+  background: linear-gradient(120deg, #e94f4f, #b7483b) !important;
+  box-shadow: 0 6px 16px rgba(216, 63, 63, 0.35) !important;
+}
+
+@keyframes pulse-red {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(216, 63, 63, 0.25);
+  }
+  50% {
+    box-shadow: 0 6px 18px rgba(216, 63, 63, 0.45);
+  }
+}
+
 .tab-content {
   display: none;
 }
@@ -1863,6 +1888,16 @@ tbody tr {
   .tab-btn {
     flex: 1;
     text-align: center;
+  }
+  
+  .simulator-link {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 8px;
+  }
+  
+  .simulator-btn {
+    width: 100%;
   }
 }
 

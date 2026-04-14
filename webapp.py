@@ -131,6 +131,8 @@ async def add_no_cache_headers(request: Request, call_next):
 # Ensure static output directory exists before mount.
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Mount simulator directory
+SIMULATOR_DIR = BASE_DIR / "simulator"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
 
@@ -637,15 +639,30 @@ def export_audit_files(result: Dict[str, Any]) -> Dict[str, str]:
     job_dir = OUTPUT_DIR / result["job_id"].lower()
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    pdf_path = job_dir / f"{safe_stem}.pdf"
-    docx_path = job_dir / f"{safe_stem}.docx"
     txt_path = job_dir / f"{safe_stem}.txt"
+    docx_path = job_dir / f"{safe_stem}.docx"
+    pdf_path = job_dir / f"{safe_stem}.pdf"
 
     # Save raw report text for verification
     txt_path.write_text(result["report_text"], encoding="utf-8")
 
-    _write_pdf(pdf_path, result)
-    _write_docx(docx_path, result)
+    # Try to create PDF, but don't fail if it errors
+    pdf_created = False
+    try:
+        _write_pdf(pdf_path, result)
+        pdf_created = True
+    except Exception as e:
+        print(f"[WARNING] PDF generation failed: {e}")
+        print("[INFO] Continuing without PDF export")
+
+    # Try to create DOCX
+    docx_created = False
+    try:
+        _write_docx(docx_path, result)
+        docx_created = True
+    except Exception as e:
+        print(f"[WARNING] DOCX generation failed: {e}")
+        print("[INFO] Continuing without DOCX export")
 
     with lock:
         with OUTPUT_CSV_PATH.open("a", encoding="utf-8", newline="") as csv_file:
@@ -679,11 +696,13 @@ def export_audit_files(result: Dict[str, Any]) -> Dict[str, str]:
                 }
             )
 
-    return {
-        "pdf": f"/api/audits/{result['audit_id']}/pdf/download",
-        "docx": f"/outputs/{result['job_id'].lower()}/{docx_path.name}",
-        "txt": f"/outputs/{result['job_id'].lower()}/{txt_path.name}",
-    }
+    links = {"txt": f"/outputs/{result['job_id'].lower()}/{txt_path.name}"}
+    if pdf_created:
+        links["pdf"] = f"/api/audits/{result['audit_id']}/pdf/download"
+    if docx_created:
+        links["docx"] = f"/outputs/{result['job_id'].lower()}/{docx_path.name}"
+    
+    return links
 
 
 @app.on_event("startup")
@@ -694,6 +713,12 @@ def startup_event() -> None:
 @app.get("/")
 def serve_index() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/simulator")
+def serve_simulator() -> FileResponse:
+    """Serve simulator dashboard on same port"""
+    return FileResponse(SIMULATOR_DIR / "dashboard.html")
 
 
 @app.post("/api/audit", response_model=AuditResponse)
@@ -1328,3 +1353,146 @@ async def websocket_logs(websocket: WebSocket):
     except Exception:
         if websocket in active_websockets:
             active_websockets.remove(websocket)
+
+
+# ── Simulator Integration ─────────────────────────────────────────────
+
+from simulator.simulator import (
+    state as sim_state,
+    manager as sim_manager,
+    _build_snapshot,
+    _current_shift,
+    _compute_esg_score,
+    PROCESSES,
+    VIOLATION_TYPES,
+    TICK_INTERVAL,
+    MAX_HISTORY
+)
+
+
+@app.websocket("/ws/simulator")
+async def ws_simulator(websocket: WebSocket) -> None:
+    await sim_manager.connect(websocket)
+    await websocket.send_json(_build_snapshot())
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        sim_manager.disconnect(websocket)
+
+
+@app.post("/simulation/start")
+async def start_simulation() -> Dict[str, Any]:
+    sim_state.running = True
+    return {"status": "running"}
+
+
+@app.post("/simulation/stop")
+async def stop_simulation() -> Dict[str, Any]:
+    sim_state.running = False
+    return {"status": "stopped"}
+
+
+@app.post("/simulation/reset")
+async def reset_simulation() -> Dict[str, Any]:
+    sim_state.reset()
+    await sim_manager.broadcast(_build_snapshot())
+    return {"status": "reset"}
+
+
+@app.post("/simulation/trigger-spike")
+async def trigger_spike() -> Dict[str, Any]:
+    sim_state.spike_active = True
+    sim_state.spike_remaining = 6
+    sim_state.spike_multiplier = round(__import__("random").uniform(1.4, 2.1), 2)
+    return {"status": "spike_triggered", "multiplier": sim_state.spike_multiplier, "ticks": 6}
+
+
+@app.post("/simulation/trigger-violation")
+async def trigger_violation() -> Dict[str, Any]:
+    entry = {"type": "EPA_FINE", "severity": "HIGH", "description": "EPA emission limit fine", "fine": 250_000, "id": f"VIO-{uuid4().hex[:8].upper()}", "timestamp": datetime.now(timezone.utc).isoformat()}
+    sim_state.active_violations.append(entry)
+    if len(sim_state.active_violations) > 10:
+        sim_state.active_violations = sim_state.active_violations[-10:]
+    sim_state.cumulative_violations += 3
+    sim_state.esg_score = _compute_esg_score()
+    await sim_manager.broadcast(_build_snapshot())
+    return {"status": "violation_injected", "violation": entry}
+
+
+@app.get("/simulation/snapshot")
+async def snapshot() -> Dict[str, Any]:
+    return _build_snapshot()
+
+
+@app.post("/audit/run")
+async def run_audit_from_simulator() -> Dict[str, Any]:
+    snap = _build_snapshot()
+    payload = {"supplier_name": snap["supplier_name"], "emissions": snap["estimated_annual_co2"], "violations": snap["cumulative_violations"], "notes": f"Simulator audit", "sector": "default"}
+    try:
+        result = run_audit(AuditRequest(**payload))
+        result["download_links"] = export_audit_files(result)
+        if result.get("human_approval_required", False):
+            pending = load_pending()
+            pending.insert(0, result)
+            save_pending(pending)
+        else:
+            history = load_history()
+            history.insert(0, result)
+            save_history(history[:500])
+        sim_state.last_audit_result = result
+        await sim_manager.broadcast({"type": "audit_result", "result": result})
+        return result
+    except Exception as exc:
+        error_msg = {"type": "audit_error", "error": str(exc)}
+        await sim_manager.broadcast(error_msg)
+        return error_msg
+
+
+async def _simulation_loop() -> None:
+    import random
+    while True:
+        if not sim_state.running:
+            await asyncio.sleep(0.5)
+            continue
+        sim_state.tick_count += 1
+        shift_name, shift_mult = _current_shift()
+        tick_co2 = 0.0
+        for proc in PROCESSES:
+            noise = random.gauss(1.0, 0.06)
+            daily_rate = proc["base_co2"] * shift_mult * noise
+            if sim_state.spike_active:
+                daily_rate *= sim_state.spike_multiplier
+            per_tick = daily_rate / (86400 / TICK_INTERVAL)
+            sim_state.process_emissions[proc["name"]] = daily_rate
+            tick_co2 += per_tick
+        sim_state.total_co2_today += tick_co2
+        if sim_state.spike_active:
+            sim_state.spike_remaining -= 1
+            if sim_state.spike_remaining <= 0:
+                sim_state.spike_active = False
+                sim_state.spike_multiplier = 1.0
+        else:
+            if random.random() < 0.08:
+                sim_state.spike_active = True
+                sim_state.spike_remaining = random.randint(3, 8)
+                sim_state.spike_multiplier = round(random.uniform(1.4, 2.1), 2)
+        if random.random() < 0.05:
+            viol = random.choice(VIOLATION_TYPES)
+            entry = {**viol, "id": f"VIO-{uuid4().hex[:8].upper()}", "timestamp": datetime.now(timezone.utc).isoformat()}
+            sim_state.active_violations.append(entry)
+            if len(sim_state.active_violations) > 10:
+                sim_state.active_violations = sim_state.active_violations[-10:]
+            sim_state.cumulative_violations += 1
+        sim_state.esg_score = _compute_esg_score()
+        snap = _build_snapshot()
+        sim_state.history.append(snap)
+        if len(sim_state.history) > MAX_HISTORY:
+            sim_state.history = sim_state.history[-MAX_HISTORY:]
+        await sim_manager.broadcast(snap)
+        await asyncio.sleep(TICK_INTERVAL)
+
+
+@app.on_event("startup")
+async def startup_simulator() -> None:
+    asyncio.create_task(_simulation_loop())
