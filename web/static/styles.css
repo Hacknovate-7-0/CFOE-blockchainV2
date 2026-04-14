@@ -2094,3 +2094,176 @@ tbody tr {
   font-weight: 600;
   font-family: "IBM Plex Mono", monospace;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Revenue / Agentic Commerce Dashboard  (Part 5)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.revenue-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.revenue-header h2 {
+  margin: 0;
+}
+
+.revenue-subtitle {
+  font-size: 0.82rem;
+  color: #5d7e72;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ── KPI Cards ─────────────────────────────────────────────────────── */
+.revenue-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.revenue-kpi-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(235,252,240,0.88));
+  border: 1px solid #9dc0ad;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 8px 24px rgba(17, 47, 41, 0.08), inset 0 1px 0 rgba(255,255,255,0.6);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.revenue-kpi-card:hover {
+  box-shadow: 0 12px 32px rgba(17, 47, 41, 0.14);
+  transform: translateY(-2px);
+}
+
+.revenue-kpi-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.revenue-kpi-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #4b6a61;
+  margin-top: 4px;
+}
+
+.revenue-kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1f5a3e;
+  font-family: "IBM Plex Mono", monospace;
+  line-height: 1.2;
+}
+
+.revenue-kpi-sub {
+  font-size: 0.76rem;
+  color: #7a9b8e;
+}
+
+/* ── Wallet Cards ──────────────────────────────────────────────────── */
+.revenue-wallets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.revenue-wallet-card {
+  background: linear-gradient(135deg, #f0faf5, #e8f4ee);
+  border: 1px solid #89b8a0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 4px 12px rgba(17, 47, 41, 0.07);
+  transition: box-shadow 0.2s ease;
+}
+
+.revenue-wallet-card:hover {
+  box-shadow: 0 8px 20px rgba(17, 47, 41, 0.12);
+}
+
+/* Skeleton shimmer while loading */
+.revenue-wallet-card.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(200, 228, 214, 0.4) 25%,
+    rgba(229, 247, 237, 0.7) 50%,
+    rgba(200, 228, 214, 0.4) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.rwc-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #2b6b54;
+}
+
+.rwc-address {
+  font-size: 0.78rem;
+  font-family: "IBM Plex Mono", monospace;
+  color: #5a7a6d;
+  word-break: break-all;
+}
+
+.rwc-balance {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #145c3f;
+  font-family: "IBM Plex Mono", monospace;
+  margin-top: 4px;
+}
+
+/* ── Section headers ───────────────────────────────────────────────── */
+.revenue-tx-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.revenue-tx-head h2 {
+  margin: 0;
+}
+
+/* Monospace link for TX IDs */
+a.mono {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  color: #1f7d54;
+  text-decoration: none;
+  border-bottom: 1px dotted #68b28c;
+  word-break: break-all;
+}
+
+a.mono:hover {
+  color: #145c3f;
+  border-bottom-style: solid;
+}
+
+/* Revenue sections stacked with spacing */
+.revenue-overview-panel,
+.revenue-wallets-panel,
+.revenue-earnings-panel,
+.revenue-tx-panel {
+  margin-bottom: 4px;
+}

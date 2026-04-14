@@ -142,8 +142,13 @@ jupyter notebook global-cfoe.ipynb
 | Policy Enforcement            | Automatic action routing based on risk thresholds   |
 | HITL Safety Gate              | High-risk cases marked for human review             |
 | Blockchain Integration        | On-chain audit anchoring with Algorand              |
-| Carbon Credit Tokens          | Fungible ASA tokens for tradeable emission credits |
-| Audit Certificate NFTs        | Unique 1-of-1 NFTs for compliance proof            |
+| Carbon Credit Tokens          | Fungible ASA tokens for tradeable emission credits  |
+| DeFi Gamification             | Leaderboards, points, streak bonuses, and badges    |
+| Staking & Marketplace         | Web3 markets to lock/trade carbon emission yields   |
+| Agentic Commerce (X402)       | AI agents with autonomous native algorithmic wallets|
+| Encrypted Audit Paywalls      | SEC-grade AES-256 gated reports via 0.02 ALGO locks |
+| Agentic Revenue Dashboard     | Track automated micro-payments flowing between agents|
+| Audit Certificate NFTs        | Unique 1-of-1 NFTs for compliance proof             |
 | AI Reporting                  | Executive summaries and recommendations             |
 | Web Dashboard                 | Submit, compare, and track audits interactively     |
 | Real-Time Simulator           | Live emissions streaming and one-click data audits  |
@@ -685,6 +690,45 @@ python test_carbon_tokens.py
 - **Reserve**: Holds uncirculated supply
 - **Freeze**: Can freeze accounts if needed
 - **Clawback**: Can revoke credits in case of fraud
+
+---
+
+## 🎮 DeFi Gamification & Marketplace
+
+The gamification engine leverages decentralized finance to incentivize low emissions and track market performance:
+
+#### 1. Gamified Leaderboard & Badges
+- **Algorithmic Grading**: Carbon scores natively mapped into "Points".
+- **Dynamic Achievements**: Streak bonuses (+50 points) for consistent compliant audits, and Improvement bonuses (+30) for drastically better period-over-period scoring.
+- **Compliance Bonds**: High-risk audits prompt automated asset locks (Bonds) penalizing repeated infractions.
+- **Visual Titles**: AI agents reward "Green Champion" or "Eco Performer" tags.
+
+#### 2. Staking Yields & Decentralized Exchange
+- **Marketplace Listing (`/api/marketplace`)**: Suppliers can list excess ISO-certified Carbon Credits on a built-in decentralized algorithmic marketplace.
+- **Yield Staking (`/api/staking`)**: Unused Carbon Credits can be cryptographically locked back into the treasury validator to harvest up to 10% ALGO APY representing network participation benefits.
+
+---
+
+## 🤖 Agentic Commerce (X402 Protocol)
+
+We implement the groundbreaking `X402` Micro-payment specification across our core AI Agents via the Algorand blockchain. Our AI agents are highly autonomous economic actors!
+
+### Features
+
+#### 1. Autonomous Agent Wallets
+The system auto-generates localized non-custodial testnet identities (Addresses/Private Keys) on startup for the `monitor_agent`, `reporting_agent`, and `policy_agent`. These are automatically funded with 5 ALGO directly from the Auditor master-wallet representing their starting "budgets."
+
+#### 2. Machine-to-Machine Micro-Tolls (M2M)
+Agents actively charge one another for intelligence via base64 encoded X402 cryptographic headers:
+*   Before calling the heavy Tavily Web-Search API, the **Monitor Agent** is required to draft and sign an on-chain transfer of `0.001 ALGO` to the Data Provider node.
+*   System architectures run as Fail-Open ensuring that network congestion doesn't crash the critical reporting capabilities.
+
+#### 3. SEC-Grade AES-256 Paywalls
+*   The **Reporting Agent** finalizes each compliance analysis report by completely encrypting the text payload locally.
+*   A user querying the report will hit a `HTTP 402 Payment Required` blocking firewall unless a cryptographic verification check confirms that `0.02 ALGO` has been transferred to unlock the specific audit (`/api/report/{audit_id}/pay`).
+
+#### 4. The Agentic Revenue Dashboard
+Accessible natively in the dashboard (`💰 Revenue` tab), CfoE provides a comprehensive terminal evaluating agent capital velocity. It accurately tallies total protocol earnings, compares agent treasury balances inside Algorand, and plots a live 10-tx ledger tracing every M2M economic exchange!
 
 ---
 

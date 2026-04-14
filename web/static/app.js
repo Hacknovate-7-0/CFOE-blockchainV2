@@ -99,6 +99,9 @@
       retired: [],
       nfts: [],
     },
+    // Revenue / X402 state
+    revenueData: null,
+    revenueInterval: null,
   };
 
   const DOWNLOADABLE_FORMATS = ['pdf', 'docx'];
@@ -1025,9 +1028,13 @@ ${item.report_text || 'No report generated.'}</div>
     addLogMessage({ type: 'info', message: 'Audit started. Waiting for progress updates...' });
 
     try {
+      // Internal UI calls bypass the X402 payment gate via shared secret
       const response = await fetch('/api/audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Secret': 'cfoe-internal-bypass-secret',
+        },
         body: JSON.stringify(payload),
       });
 
@@ -1925,8 +1932,106 @@ ${item.report_text || 'No report generated.'}</div>
     }
   };
 
+  // ============================================
+  // Revenue Dashboard (Part 5)
+  // ============================================
+
+  const fetchRevenue = async () => {
+    try {
+      const res = await fetch('/api/revenue');
+      if (!res.ok) return;
+      const data = await res.json();
+      state.revenueData = data;
+      renderRevenue(data);
+    } catch (err) {
+      console.warn('Revenue fetch failed:', err);
+    }
+  };
+
+  const renderRevenue = (data) => {
+    // KPI cards
+    const kpiEarned = document.getElementById('rev-total-earned');
+    const kpiAudits = document.getElementById('rev-audits-paid');
+    const kpiReports = document.getElementById('rev-reports-sold');
+    const kpiCount = document.getElementById('rev-payment-count');
+
+    if (kpiEarned) kpiEarned.textContent = (data.total_algo_earned || 0).toFixed(6) + ' ALGO';
+    if (kpiAudits) kpiAudits.textContent = data.total_audits_paid || 0;
+    if (kpiReports) kpiReports.textContent = data.total_reports_sold || 0;
+    if (kpiCount) kpiCount.textContent = data.payment_count || 0;
+
+    // Agent wallet balances
+    const AGENT_MAP = {
+      monitor_agent:   'monitor',
+      reporting_agent: 'reporting',
+      policy_agent:    'policy',
+    };
+    const balances = data.agent_balances || {};
+    for (const [agentKey, shortKey] of Object.entries(AGENT_MAP)) {
+      const info = balances[agentKey] || {};
+      const addrEl  = document.getElementById(`rwc-${shortKey}-addr`);
+      const balEl   = document.getElementById(`rwc-${shortKey}-bal`);
+      const card    = addrEl?.closest('.revenue-wallet-card');
+      if (addrEl) {
+        const addr = info.address || 'Not initialized';
+        addrEl.textContent = addr.length > 20 ? addr.slice(0, 10) + '...' + addr.slice(-6) : addr;
+        addrEl.title = addr;
+      }
+      if (balEl) {
+        const bal = info.balance_algo;
+        balEl.textContent = bal != null ? bal.toFixed(6) + ' ALGO' : 'N/A';
+        if (card) card.classList.remove('skeleton');
+      }
+    }
+
+    // Earnings by agent table
+    const earningsBody = document.getElementById('rev-earnings-body');
+    if (earningsBody) {
+      const earnings = data.earnings_by_agent || {};
+      const total = data.total_algo_earned || 0;
+      const entries = Object.entries(earnings);
+      if (entries.length === 0) {
+        earningsBody.innerHTML = '<tr><td colspan="3" class="lb-empty">No earnings yet</td></tr>';
+      } else {
+        earningsBody.innerHTML = entries
+          .sort((a, b) => b[1] - a[1])
+          .map(([agent, amt]) => {
+            const pct = total > 0 ? ((amt / total) * 100).toFixed(1) : '0';
+            const bar = `<div style="height:6px;border-radius:3px;background:linear-gradient(90deg,#00ff88,#00c4ff);width:${pct}%;min-width:4px"></div>`;
+            return `<tr><td>${agent}</td><td>${amt.toFixed(6)} ALGO</td><td style="min-width:120px">${bar} ${pct}%</td></tr>`;
+          })
+          .join('');
+      }
+    }
+
+    // Recent X402 payments table
+    const txBody = document.getElementById('rev-tx-body');
+    if (txBody) {
+      const payments = data.recent_payments || [];
+      if (payments.length === 0) {
+        txBody.innerHTML = '<tr><td colspan="7" class="lb-empty">No X402 payments yet</td></tr>';
+      } else {
+        txBody.innerHTML = payments.map(p => {
+          const ts = p.timestamp ? new Date(p.timestamp).toLocaleString() : '—';
+          const dirBadge = p.direction === 'incoming'
+            ? '<span class="badge low">↓ IN</span>'
+            : '<span class="badge moderate">↑ OUT</span>';
+          const statusBadge = p.status === 'confirmed'
+            ? '<span class="badge low">✓</span>'
+            : p.status === 'pending'
+              ? '<span class="badge moderate">⏳</span>'
+              : '<span class="badge critical">✗</span>';
+          const txLink = p.tx_id
+            ? `<a href="https://testnet.algoexplorer.io/tx/${p.tx_id}" target="_blank" rel="noopener" class="mono" title="${p.tx_id}">${p.tx_id.slice(0, 12)}...</a>`
+            : '—';
+          return `<tr><td>${ts}</td><td>${p.agent || '—'}</td><td>${dirBadge}</td><td>${p.service || '—'}</td><td>${(p.amount_algo || 0).toFixed(4)}</td><td>${statusBadge}</td><td>${txLink}</td></tr>`;
+        }).join('');
+      }
+    }
+  };
+
   const switchTab = (tabId) => {
-    // Nav 
+    // Nav
     if (elements.tabBtns) {
       elements.tabBtns.forEach(btn => {
         if (btn.dataset.tab === tabId) btn.classList.add('active');
@@ -1949,16 +2054,25 @@ ${item.report_text || 'No report generated.'}</div>
         state.lbInterval = setInterval(() => {
           fetchLeaderboard();
         }, 30000); // 30s auto-refresh
-        
+
         // Update time every second visually
         setInterval(updateLeaderboardTime, 1000);
       }
     } else if (tabId === 'tokens') {
       fetchTokenSummary();
+    } else if (tabId === 'revenue') {
+      fetchRevenue();
+      if (!state.revenueInterval) {
+        state.revenueInterval = setInterval(fetchRevenue, 30000);
+      }
     } else {
       if (state.lbInterval) {
         clearInterval(state.lbInterval);
         state.lbInterval = null;
+      }
+      if (state.revenueInterval) {
+        clearInterval(state.revenueInterval);
+        state.revenueInterval = null;
       }
     }
   };
