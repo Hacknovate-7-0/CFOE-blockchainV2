@@ -104,7 +104,7 @@
     revenueInterval: null,
   };
 
-  const DOWNLOADABLE_FORMATS = ['pdf', 'docx'];
+  const DOWNLOADABLE_FORMATS = ['txt', 'pdf', 'docx'];
 
   // ============================================
   // Utility Functions

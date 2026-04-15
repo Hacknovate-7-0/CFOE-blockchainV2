@@ -63,15 +63,8 @@ active_websockets: List[WebSocket] = []
 def broadcast_log_sync(log_msg: Dict[str, Any]) -> None:
     """Put log in queue and try to send to active websockets"""
     log_queue.put(log_msg)
-    # Create async task to broadcast
-    for ws in active_websockets[:]:
-        try:
-            # Use asyncio to send if event loop is running
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(ws.send_json(log_msg))
-        except Exception:
-            pass
+    # Don't create async tasks here - let the websocket endpoint handle it
+    # The log queue will be consumed by the websocket endpoint
 
 
 class AuditRequest(BaseModel):
@@ -778,6 +771,7 @@ def export_audit_files(result: Dict[str, Any]) -> Dict[str, str]:
     if docx_created:
         links["docx"] = f"/outputs/{result['job_id'].lower()}/{docx_path.name}"
     
+    # Always include TXT in download dialog
     return links
 
 
@@ -2171,7 +2165,10 @@ async def _simulation_loop() -> None:
         sim_state.history.append(snap)
         if len(sim_state.history) > MAX_HISTORY:
             sim_state.history = sim_state.history[-MAX_HISTORY:]
-        await sim_manager.broadcast(snap)
+        try:
+            await sim_manager.broadcast(snap)
+        except Exception:
+            pass
         await asyncio.sleep(TICK_INTERVAL)
 
 

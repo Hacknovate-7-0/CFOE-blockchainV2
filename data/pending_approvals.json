@@ -1,1 +1,71 @@
-[]
+[
+  {
+    "job_id": "JOB-CCA16D42",
+    "audit_id": "AUD-A32DFCC6D9",
+    "timestamp": "2026-04-15T04:17:28.626935+00:00",
+    "supplier_name": "Novasteel Industries",
+    "emissions": 2100.0,
+    "violations": 10,
+    "notes": "",
+    "sector": "General Industry",
+    "sector_key": "default",
+    "production_volume": null,
+    "production_unit": "tonne",
+    "registry_id": "",
+    "emissions_intensity": null,
+    "prorata_progress": 0.658,
+    "baseline_year": 2023,
+    "target_year": 2027,
+    "risk_score": 0.75,
+    "classification": "Critical Risk",
+    "emissions_score": 0.25,
+    "violations_score": 0.5,
+    "external_risk_score": 0.2,
+    "policy_decision": "ESCALATE_TO_HUMAN_REVIEW",
+    "human_approval_required": true,
+    "policy_reason": "Risk score 0.75 exceeds critical threshold (0.70). Manual review mandatory.",
+    "recommended_action": "Suspend new orders pending compliance review and executive approval",
+    "report_text": "Error in ReportingAgent: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01knbfwx8jfh7v828pw46ewqm8` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 99481, Requested 3009. Please try again in 35m51.359999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+    "report_source": "groq-llama",
+    "download_links": {
+      "txt": "/outputs/job-cca16d42/aud-a32dfcc6d9.txt",
+      "pdf": "/api/audits/AUD-A32DFCC6D9/pdf/download",
+      "docx": "/outputs/job-cca16d42/aud-a32dfcc6d9.docx"
+    },
+    "status": "pending_approval",
+    "blockchain": {
+      "score_tx": "CLNG7YNQAOSN7L5WVUIFBZQTYNOTFVQTF7NZHCHXIE3MXCMCA6JA",
+      "score_hash": "b29aaf10519ab21fd52be68c6adc76584c6eac09c3e5e1c4d851563416dfdd21",
+      "report_tx": "NUKTAV3PJMGLVLYE5BX2UIJK4L3ZVH4HVG3WVOYTLA7WGCYVIPWQ",
+      "report_hash": "9f7a1e3e4f3f811bf17c4503cdfc7412188554f4747b70067e1ae8976ed02d83",
+      "verification_code": "9F7A1E3E4F3F",
+      "on_chain": true,
+      "hitl_tx": null
+    },
+    "carbon_credits": {
+      "supplier_id": "novasteel_industries",
+      "supplier_name": "Novasteel Industries",
+      "credits_earned": 0,
+      "badges_earned": [
+        "Improver"
+      ],
+      "streak_bonus": 0,
+      "improvement_bonus": 30,
+      "total_credits": 30,
+      "previous_total": 0,
+      "new_total": 30,
+      "esg_score": 0.75,
+      "timestamp": "2026-04-15T04:17:28.626935+00:00",
+      "ccc_mint": {
+        "status": "queued_retry",
+        "tx_id": null,
+        "amount": 30,
+        "pending": true
+      }
+    },
+    "approval_status": "pending",
+    "approver_name": null,
+    "approval_notes": null,
+    "approval_timestamp": null
+  }
+]

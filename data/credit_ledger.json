@@ -737,7 +737,7 @@
   },
   "polluteco_industries": {
     "supplier_name": "PolluteCo Industries",
-    "total_credits": 180,
+    "total_credits": 330,
     "badge_history": [
       {
         "badge": "Eco Performer",
@@ -754,9 +754,78 @@
       {
         "badge": "Improver",
         "timestamp": "2026-04-14T07:51:51.862977+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-14T18:23:59.591067+00:00"
+      },
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-14T18:23:59.591067+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-15T03:48:01.413891+00:00"
+      },
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-15T03:48:01.413891+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-15T03:50:16.273438+00:00"
+      },
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-15T03:50:16.273438+00:00"
       }
     ],
     "audit_streak": [
+      {
+        "esg_score": 0.55,
+        "credits_earned": 50,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "timestamp": "2026-04-15T03:50:16.273438+00:00"
+      },
+      {
+        "esg_score": 0.95,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T03:50:10.945202+00:00"
+      },
+      {
+        "esg_score": 0.55,
+        "credits_earned": 50,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "timestamp": "2026-04-15T03:48:01.413891+00:00"
+      },
+      {
+        "esg_score": 1.0,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T03:47:56.595713+00:00"
+      },
+      {
+        "esg_score": 0.55,
+        "credits_earned": 50,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "timestamp": "2026-04-14T18:23:59.591067+00:00"
+      },
+      {
+        "esg_score": 0.95,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-14T18:23:54.201602+00:00"
+      },
       {
         "esg_score": 0.25,
         "credits_earned": 90,
@@ -800,11 +869,11 @@
         "timestamp": "2026-04-04T05:26:12.943191+00:00"
       }
     ],
-    "current_streak": 1,
+    "current_streak": 0,
     "longest_streak": 1,
     "best_esg_score": 0.25,
     "worst_esg_score": 1.0,
-    "total_audits": 6,
+    "total_audits": 12,
     "credit_history": [
       {
         "credits_earned": 0,
@@ -865,6 +934,69 @@
         "streak_bonus": 0,
         "improvement_bonus": 30,
         "timestamp": "2026-04-14T07:51:51.862977+00:00"
+      },
+      {
+        "credits_earned": 0,
+        "running_total": 180,
+        "esg_score": 0.95,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-14T18:23:54.201602+00:00"
+      },
+      {
+        "credits_earned": 50,
+        "running_total": 230,
+        "esg_score": 0.55,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-14T18:23:59.591067+00:00"
+      },
+      {
+        "credits_earned": 0,
+        "running_total": 230,
+        "esg_score": 1.0,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T03:47:56.595713+00:00"
+      },
+      {
+        "credits_earned": 50,
+        "running_total": 280,
+        "esg_score": 0.55,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-15T03:48:01.413891+00:00"
+      },
+      {
+        "credits_earned": 0,
+        "running_total": 280,
+        "esg_score": 0.95,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T03:50:10.945202+00:00"
+      },
+      {
+        "credits_earned": 50,
+        "running_total": 330,
+        "esg_score": 0.55,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-15T03:50:16.273438+00:00"
       }
     ]
   },
@@ -1190,6 +1322,297 @@
         "streak_bonus": 0,
         "improvement_bonus": 30,
         "timestamp": "2026-04-14T17:37:17.474721+00:00"
+      }
+    ]
+  },
+  "polluteco2_industries": {
+    "supplier_name": "PolluteCo2 Industries",
+    "total_credits": 30,
+    "badge_history": [
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-15T03:53:11.678508+00:00"
+      }
+    ],
+    "audit_streak": [
+      {
+        "esg_score": 0.75,
+        "credits_earned": 30,
+        "badges": [
+          "Improver"
+        ],
+        "timestamp": "2026-04-15T03:53:11.678508+00:00"
+      },
+      {
+        "esg_score": 1.0,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T03:53:06.192366+00:00"
+      }
+    ],
+    "current_streak": 0,
+    "longest_streak": 0,
+    "best_esg_score": 0.75,
+    "worst_esg_score": 1.0,
+    "total_audits": 2,
+    "credit_history": [
+      {
+        "credits_earned": 0,
+        "running_total": 0,
+        "esg_score": 1.0,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T03:53:06.192366+00:00"
+      },
+      {
+        "credits_earned": 30,
+        "running_total": 30,
+        "esg_score": 0.75,
+        "badges": [
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-15T03:53:11.678508+00:00"
+      }
+    ]
+  },
+  "novasteel_components": {
+    "supplier_name": "Novasteel Components",
+    "total_credits": 80,
+    "badge_history": [
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-15T03:55:15.789774+00:00"
+      },
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-15T04:00:31.118453+00:00"
+      },
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-15T04:00:31.118453+00:00"
+      }
+    ],
+    "audit_streak": [
+      {
+        "esg_score": 0.55,
+        "credits_earned": 50,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "timestamp": "2026-04-15T04:00:31.118453+00:00"
+      },
+      {
+        "esg_score": 0.95,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T04:00:25.547161+00:00"
+      },
+      {
+        "esg_score": 0.75,
+        "credits_earned": 30,
+        "badges": [
+          "Improver"
+        ],
+        "timestamp": "2026-04-15T03:55:15.789774+00:00"
+      },
+      {
+        "esg_score": 0.95,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T03:55:10.360068+00:00"
+      }
+    ],
+    "current_streak": 0,
+    "longest_streak": 0,
+    "best_esg_score": 0.55,
+    "worst_esg_score": 0.95,
+    "total_audits": 4,
+    "credit_history": [
+      {
+        "credits_earned": 0,
+        "running_total": 0,
+        "esg_score": 0.95,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T03:55:10.360068+00:00"
+      },
+      {
+        "credits_earned": 30,
+        "running_total": 30,
+        "esg_score": 0.75,
+        "badges": [
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-15T03:55:15.789774+00:00"
+      },
+      {
+        "credits_earned": 0,
+        "running_total": 30,
+        "esg_score": 0.95,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T04:00:25.547161+00:00"
+      },
+      {
+        "credits_earned": 50,
+        "running_total": 80,
+        "esg_score": 0.55,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-15T04:00:31.118453+00:00"
+      }
+    ]
+  },
+  "novasteel2_components": {
+    "supplier_name": "Novasteel2 Components",
+    "total_credits": 0,
+    "badge_history": [],
+    "audit_streak": [
+      {
+        "esg_score": 0.95,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T04:12:07.817883+00:00"
+      }
+    ],
+    "current_streak": 0,
+    "longest_streak": 0,
+    "best_esg_score": 0.95,
+    "worst_esg_score": 0.95,
+    "total_audits": 1,
+    "credit_history": [
+      {
+        "credits_earned": 0,
+        "running_total": 0,
+        "esg_score": 0.95,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T04:12:07.817883+00:00"
+      }
+    ]
+  },
+  "polluteco_components": {
+    "supplier_name": "PolluteCo Components",
+    "total_credits": 50,
+    "badge_history": [
+      {
+        "badge": "In Progress",
+        "timestamp": "2026-04-15T04:14:12.232748+00:00"
+      },
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-15T04:14:12.232748+00:00"
+      }
+    ],
+    "audit_streak": [
+      {
+        "esg_score": 0.55,
+        "credits_earned": 50,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "timestamp": "2026-04-15T04:14:12.232748+00:00"
+      },
+      {
+        "esg_score": 0.95,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T04:14:12.226747+00:00"
+      }
+    ],
+    "current_streak": 0,
+    "longest_streak": 0,
+    "best_esg_score": 0.55,
+    "worst_esg_score": 0.95,
+    "total_audits": 2,
+    "credit_history": [
+      {
+        "credits_earned": 0,
+        "running_total": 0,
+        "esg_score": 0.95,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T04:14:12.226747+00:00"
+      },
+      {
+        "credits_earned": 50,
+        "running_total": 50,
+        "esg_score": 0.55,
+        "badges": [
+          "In Progress",
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-15T04:14:12.232748+00:00"
+      }
+    ]
+  },
+  "novasteel_industries": {
+    "supplier_name": "Novasteel Industries",
+    "total_credits": 30,
+    "badge_history": [
+      {
+        "badge": "Improver",
+        "timestamp": "2026-04-15T04:17:28.626935+00:00"
+      }
+    ],
+    "audit_streak": [
+      {
+        "esg_score": 0.75,
+        "credits_earned": 30,
+        "badges": [
+          "Improver"
+        ],
+        "timestamp": "2026-04-15T04:17:28.626935+00:00"
+      },
+      {
+        "esg_score": 0.95,
+        "credits_earned": 0,
+        "badges": [],
+        "timestamp": "2026-04-15T04:17:23.301418+00:00"
+      }
+    ],
+    "current_streak": 0,
+    "longest_streak": 0,
+    "best_esg_score": 0.75,
+    "worst_esg_score": 0.95,
+    "total_audits": 2,
+    "credit_history": [
+      {
+        "credits_earned": 0,
+        "running_total": 0,
+        "esg_score": 0.95,
+        "badges": [],
+        "streak_bonus": 0,
+        "improvement_bonus": 0,
+        "timestamp": "2026-04-15T04:17:23.301418+00:00"
+      },
+      {
+        "credits_earned": 30,
+        "running_total": 30,
+        "esg_score": 0.75,
+        "badges": [
+          "Improver"
+        ],
+        "streak_bonus": 0,
+        "improvement_bonus": 30,
+        "timestamp": "2026-04-15T04:17:28.626935+00:00"
       }
     ]
   }

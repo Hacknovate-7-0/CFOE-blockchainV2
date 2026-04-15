@@ -100,8 +100,12 @@ class ConnectionManager:
 
     async def broadcast(self, data: Dict[str, Any]) -> None:
         dead: List[WebSocket] = []
-        for ws in self.active:
+        for ws in self.active[:]:
             try:
+                # Check if websocket is still connected
+                if hasattr(ws, 'client_state') and ws.client_state.name != 'CONNECTED':
+                    dead.append(ws)
+                    continue
                 await ws.send_json(data)
             except Exception:
                 dead.append(ws)
