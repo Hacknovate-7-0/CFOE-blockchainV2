@@ -2099,6 +2099,91 @@ tbody tr {
    Revenue / Agentic Commerce Dashboard  (Part 5)
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ── X402 Report Access UI ─────────────────────────────────────────── */
+.x402-report-access {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.3s ease;
+}
+
+.x402-report-access.report-locked {
+  border-color: #da8a43;
+  background: linear-gradient(135deg, #fff5e6 0%, #fef9f0 100%);
+}
+
+.x402-report-access.report-unlocked {
+  border-color: #3aa471;
+  background: linear-gradient(135deg, #e8f5f1 0%, #f0f8f4 100%);
+}
+
+.x402-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.x402-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.x402-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.x402-price {
+  margin-left: auto;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #da8a43;
+  font-family: "IBM Plex Mono", monospace;
+  padding: 4px 12px;
+  background: rgba(218, 138, 67, 0.15);
+  border-radius: 8px;
+}
+
+.x402-unlock-btn {
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #da8a43, #e9a53f);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(218, 138, 67, 0.25);
+}
+
+.x402-unlock-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(218, 138, 67, 0.35);
+  background: linear-gradient(120deg, #e9a53f, #f5b550);
+}
+
+.x402-unlock-btn:active {
+  transform: translateY(0);
+}
+
+.x402-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5a7a6f;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ── Revenue Dashboard ─────────────────────────────────────────────── */
+
 .revenue-header {
   display: flex;
   align-items: baseline;

@@ -198,9 +198,9 @@ def test_carbon_credit_system():
     print(f"   Rate: 1 CCT = 10 tons CO2eq")
     
     print("\nView on Algorand Explorer:")
-    print(f"   Token: https://testnet.algoexplorer.io/asset/{asset_id}")
+    print(f"   Token: https://lora.algokit.io/testnet/asset/{asset_id}")
     if nft_id:
-        print(f"   NFT: https://testnet.algoexplorer.io/asset/{nft_id}")
+        print(f"   NFT: https://lora.algokit.io/testnet/asset/{nft_id}")
     
     print("\nCarbon Credit Token System Working!\n")
 

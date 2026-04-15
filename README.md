@@ -726,9 +726,62 @@ Agents actively charge one another for intelligence via base64 encoded X402 cryp
 #### 3. SEC-Grade AES-256 Paywalls
 *   The **Reporting Agent** finalizes each compliance analysis report by completely encrypting the text payload locally.
 *   A user querying the report will hit a `HTTP 402 Payment Required` blocking firewall unless a cryptographic verification check confirms that `0.02 ALGO` has been transferred to unlock the specific audit (`/api/report/{audit_id}/pay`).
+*   **Frontend UI**: Reports display a 🔒 locked indicator with "Buy Report Access" button (0.02 ALGO) until payment is confirmed on-chain.
+*   **Payment Flow**: Click unlock button → Blockchain payment processed → Report automatically decrypted and displayed with 🔓 unlocked indicator.
 
 #### 4. The Agentic Revenue Dashboard
 Accessible natively in the dashboard (`💰 Revenue` tab), CfoE provides a comprehensive terminal evaluating agent capital velocity. It accurately tallies total protocol earnings, compares agent treasury balances inside Algorand, and plots a live 10-tx ledger tracing every M2M economic exchange!
+
+### Testing X402 System
+
+```bash
+# Test X402 payment middleware and encryption
+python tests/test_x402.py
+
+# Test revenue tracking after running audits
+python tests/test_x402_revenue.py
+```
+
+### Implementation Details
+
+**Backend Components:**
+- `agents/x402_payments.py` - Payment header encoding/decoding, payment recording
+- `agents/reporting_agent.py` - AES-256 report encryption/decryption, payment verification
+- `webapp.py` - X402 middleware, payment endpoints (`/api/report/{audit_id}/pay`)
+- `data/agent_payments.json` - Revenue tracking ledger
+
+**Frontend Components:**
+- `web/static/app.js` - Report access UI rendering, unlock button handlers
+- `web/static/styles.css` - X402 payment UI styling (locked/unlocked states)
+
+**Key Features:**
+- ✅ All reports automatically encrypted after audit completion
+- ✅ On-chain payment verification (never trusts client headers)
+- ✅ Real-time revenue tracking across all agents
+- ✅ Visual locked/unlocked indicators in UI
+- ✅ Seamless payment flow with blockchain confirmation
+
+**Payment Flow:**
+1. **Audit Execution**: When an audit runs via the dashboard:
+   - Monitor Agent pays 0.001 ALGO for Tavily search (if configured)
+   - Report is automatically encrypted and stored
+   - UI shows 🔒 locked indicator with "Buy Report Access" button
+
+2. **Report Access Purchase**: User clicks "Buy Report Access":
+   - Frontend sends 0.02 ALGO to Reporting Agent wallet
+   - Backend verifies payment on-chain (never trusts headers)
+   - Report is decrypted and displayed with 🔓 unlocked indicator
+   - Transaction recorded in revenue ledger
+
+3. **Revenue Tracking**: All payments logged to `data/agent_payments.json`:
+   - Monitor Agent: Outgoing payments for Tavily searches
+   - Reporting Agent: Incoming payments for report access
+   - Auditor: Incoming payments for external audit API calls (if used)
+
+**Documentation:**
+- `X402_IMPLEMENTATION_SUMMARY.md` - Complete implementation guide
+- `tests/test_x402.py` - Comprehensive test suite
+- `tests/test_x402_revenue.py` - Revenue verification tests
 
 ---
 
@@ -849,6 +902,10 @@ python test_phase2_phase3.py   # Registry, Trajectory
 
 # Test blockchain integration
 python verify_audit.py
+
+# Test X402 payment system
+python tests/test_x402.py           # Payment middleware, encryption
+python tests/test_x402_revenue.py   # Revenue tracking (run after audits)
 
 # Submit sample test data (interactive)
 python submit_test_data.py

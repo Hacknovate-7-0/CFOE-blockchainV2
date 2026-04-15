@@ -346,8 +346,8 @@ def build_fallback_report(req: AuditRequest, risk_data: Dict[str, Any], policy_d
         report += "\nTo verify this report:\n"
         report += "1. Calculate SHA-256 hash of this report text\n"
         report += "2. Compare with the Report SHA-256 above\n"
-        report += "3. Check transactions on Algorand Explorer:\n"
-        report += "   https://testnet.algoexplorer.io/tx/[TX_ID]\n"
+        report += "3. Check transactions on Lora Explorer:\n"
+        report += "   https://lora.algokit.io/testnet/transaction/[TX_ID]\n"
     
     return report
 
@@ -544,6 +544,25 @@ def run_audit(req: AuditRequest) -> Dict[str, Any]:
         result["carbon_credits"] = None
         # Regenerate report without credits
         report_text = build_fallback_report(req, risk_data, policy_data, blockchain_data_for_report, None)
+
+    # ── X402: Store encrypted report for pay-per-access (ALWAYS) ─────────
+    try:
+        from agents.reporting_agent import store_encrypted_report, get_report_blob
+        store_encrypted_report(
+            audit_id=result["audit_id"],
+            report_text=report_text,
+            supplier_name=req.supplier_name
+        )
+        broadcast_log_sync({"type": "info", "message": "✓ Report encrypted and stored for X402 access"})
+        
+        # Add encryption status to result
+        report_blob = get_report_blob(result["audit_id"])
+        result["report_encrypted"] = True
+        result["report_paid"] = report_blob.get("paid", False) if report_blob else False
+    except Exception as e:
+        broadcast_log_sync({"type": "warning", "message": f"⚠ Report encryption failed: {str(e)[:80]}"})
+        result["report_encrypted"] = False
+        result["report_paid"] = False
 
     # HITL Workflow Pause: If human approval required, save to pending queue
     if policy_data["human_approval_required"]:
@@ -915,6 +934,27 @@ async def create_audit(
         history = load_history()
         history.insert(0, result)
         save_history(history[:500])
+    
+    # Update report encryption status in history
+    if result.get("report_encrypted"):
+        try:
+            from agents.reporting_agent import get_report_blob
+            report_blob = get_report_blob(result["audit_id"])
+            if report_blob:
+                result["report_paid"] = report_blob.get("paid", False)
+                # Re-save with updated status
+                if result.get("human_approval_required", False):
+                    pending = load_pending()
+                    if pending and pending[0].get("audit_id") == result["audit_id"]:
+                        pending[0] = result
+                        save_pending(pending)
+                else:
+                    history = load_history()
+                    if history and history[0].get("audit_id") == result["audit_id"]:
+                        history[0] = result
+                        save_history(history)
+        except Exception:
+            pass
 
     return result
 
@@ -922,6 +962,23 @@ async def create_audit(
 @app.get("/api/audits")
 def list_audits(limit: int = 100) -> Dict[str, Any]:
     history = load_history()
+    
+    # Add report encryption status to each audit
+    try:
+        from agents.reporting_agent import get_report_blob
+        for audit in history[:max(1, min(limit, 500))]:
+            audit_id = audit.get("audit_id")
+            if audit_id:
+                report_blob = get_report_blob(audit_id)
+                if report_blob:
+                    audit["report_encrypted"] = True
+                    audit["report_paid"] = report_blob.get("paid", False)
+                else:
+                    audit["report_encrypted"] = False
+                    audit["report_paid"] = False
+    except Exception:
+        pass
+    
     return {"items": history[:max(1, min(limit, 500))], "count": len(history)}
 
 
@@ -1981,7 +2038,7 @@ def get_revenue_dashboard() -> Dict[str, Any]:
     for p in recent_payments:
         tx = p.get("tx_id")
         if tx:
-            p["explorer_url"] = f"https://testnet.algoexplorer.io/tx/{tx}"
+            p["explorer_url"] = f"https://lora.algokit.io/testnet/transaction/{tx}"
 
     return {
         "total_algo_earned": round(sum(agent_earnings.values()), 6),

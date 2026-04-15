@@ -423,6 +423,7 @@
 
     const analysisId = `analysis-${item.audit_id}`;
     const analysisBtnId = `analysis-toggle-${item.audit_id}`;
+    const reportAccessHTML = renderReportAccessUI(item);
 
     elements.latestResult.innerHTML = `
       <div class="latest-block">
@@ -442,11 +443,12 @@
         <div><strong>Action:</strong> ${item.recommended_action}</div>
         ${item.approver_name ? `<div><strong>Approved by:</strong> ${item.approver_name} on ${formatDate(item.approval_timestamp)}</div>` : ''}
         ${item.approval_notes ? `<div><strong>Approval Notes:</strong> ${item.approval_notes}</div>` : ''}
+        ${reportAccessHTML}
         <div class="analysis-toggle-row">
           <button id="${analysisBtnId}" type="button" class="analysis-toggle-btn">Show Analysis</button>
         </div>
         <div id="${analysisId}" class="report-wrap" hidden>
-          <div class="report">${item.report_text || 'No report generated.'}</div>
+          <div class="report" id="report-content-${item.audit_id}">${item.report_text || 'No report generated.'}</div>
         </div>
         <div id="trajectory-info" style="margin-top: 1rem;"></div>
         ${item.carbon_credits ? renderCreditsHTML(item.carbon_credits) : ''}
@@ -467,6 +469,8 @@
         }
       });
     }
+
+    attachReportAccessListeners(item);
 
     if (item.blockchain) {
       const bc = item.blockchain;
@@ -1088,6 +1092,122 @@ ${item.report_text || 'No report generated.'}</div>
       }
     } catch (error) {
       validationEl.innerHTML = `<span class="validation-error">✗ Validation failed</span>`;
+    }
+  };
+
+  // ============================================
+  // X402 Report Access Functions
+  // ============================================
+  const renderReportAccessUI = (item) => {
+    if (!item.report_encrypted) return '';
+
+    const isPaid = item.report_paid || false;
+    const lockIcon = isPaid ? '🔓' : '🔒';
+    const statusText = isPaid ? 'Report Unlocked' : 'Report Locked';
+    const statusClass = isPaid ? 'report-unlocked' : 'report-locked';
+
+    if (isPaid) {
+      return `
+        <div class="x402-report-access ${statusClass}">
+          <div class="x402-status">
+            <span class="x402-icon">${lockIcon}</span>
+            <span class="x402-text">${statusText}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="x402-report-access ${statusClass}">
+        <div class="x402-status">
+          <span class="x402-icon">${lockIcon}</span>
+          <span class="x402-text">${statusText}</span>
+          <span class="x402-price">0.02 ALGO</span>
+        </div>
+        <button type="button" class="x402-unlock-btn" data-audit-id="${item.audit_id}">
+          💳 Buy Report Access
+        </button>
+        <p class="x402-hint">Unlock full executive report with blockchain payment</p>
+      </div>
+    `;
+  };
+
+  const attachReportAccessListeners = (item) => {
+    const unlockBtn = document.querySelector(`.x402-unlock-btn[data-audit-id="${item.audit_id}"]`);
+    if (unlockBtn) {
+      unlockBtn.addEventListener('click', () => handleReportUnlock(item.audit_id));
+    }
+  };
+
+  const handleReportUnlock = async (auditId) => {
+    if (!state.walletStatus.connected) {
+      setStatus('Please connect wallet first to unlock reports', true);
+      return;
+    }
+
+    try {
+      showLoading('Processing payment for report access...');
+      setStatus('Sending 0.02 ALGO payment...');
+
+      // Step 1: Get reporting agent address
+      const agentRes = await fetch('/api/agent-wallets');
+      if (!agentRes.ok) throw new Error('Failed to get agent wallets');
+      const agentData = await agentRes.json();
+      const reportingAgent = agentData.agents?.reporting_agent;
+      if (!reportingAgent?.address) {
+        throw new Error('Reporting agent wallet not found');
+      }
+
+      // Step 2: Send payment using wallet manager
+      if (!window.walletManager || !window.walletManager.wallet) {
+        throw new Error('Wallet not connected');
+      }
+
+      const paymentResult = await window.walletManager.sendPayment(
+        reportingAgent.address,
+        0.02,
+        `CfoE Report Access: ${auditId}`
+      );
+
+      if (!paymentResult.success) {
+        throw new Error(paymentResult.error || 'Payment failed');
+      }
+
+      setStatus('Payment sent! Confirming on blockchain...');
+
+      // Step 3: Confirm payment with backend
+      const response = await fetch(`/api/report/${auditId}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tx_id: paymentResult.txId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Payment confirmation failed');
+      }
+
+      const result = await response.json();
+      
+      if (result.status === 'pending') {
+        setStatus('Payment pending confirmation. Please wait a few seconds and try again.');
+        hideLoading();
+        return;
+      }
+
+      setStatus(`Report unlocked! TX: ${paymentResult.txId.substring(0, 16)}...`);
+
+      // Refresh the audit to show unlocked state
+      await fetchHistory();
+      const updatedAudit = state.audits.find(a => a.audit_id === auditId);
+      if (updatedAudit) {
+        renderLatest(updatedAudit);
+      }
+
+      hideLoading();
+    } catch (error) {
+      setStatus(error.message, true);
+      hideLoading();
     }
   };
 
@@ -2022,7 +2142,7 @@ ${item.report_text || 'No report generated.'}</div>
               ? '<span class="badge moderate">⏳</span>'
               : '<span class="badge critical">✗</span>';
           const txLink = p.tx_id
-            ? `<a href="https://testnet.algoexplorer.io/tx/${p.tx_id}" target="_blank" rel="noopener" class="mono" title="${p.tx_id}">${p.tx_id.slice(0, 12)}...</a>`
+            ? `<a href="https://lora.algokit.io/testnet/transaction/${p.tx_id}" target="_blank" rel="noopener" class="mono" title="${p.tx_id}">${p.tx_id.slice(0, 12)}...</a>`
             : '—';
           return `<tr><td>${ts}</td><td>${p.agent || '—'}</td><td>${dirBadge}</td><td>${p.service || '—'}</td><td>${(p.amount_algo || 0).toFixed(4)}</td><td>${statusBadge}</td><td>${txLink}</td></tr>`;
         }).join('');

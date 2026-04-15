@@ -37,9 +37,9 @@ WALLETS_PATH = DATA_DIR / "agent_wallets.json"
 ENV_PATH = BASE_DIR / ".env"
 
 AGENT_NAMES = ["monitor_agent", "reporting_agent", "policy_agent"]
-FUNDING_AMOUNT_ALGO = 5.0          # ALGO per agent on first run
+FUNDING_AMOUNT_ALGO = 1.0          # ALGO per agent on first run (reduced from 5.0)
 LOW_BALANCE_THRESHOLD = 0.01      # ALGO — triggers top-up request
-TOP_UP_AMOUNT_ALGO = 5.0           # ALGO to top-up when balance is low
+TOP_UP_AMOUNT_ALGO = 1.0           # ALGO to top-up when balance is low (reduced from 5.0)
 
 _wallet_lock = threading.Lock()
 
